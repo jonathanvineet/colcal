@@ -1,5 +1,7 @@
 # Colcal Auth (Supabase + React Router)
 
+Colcal Auth provides a polished login flow using Supabase Auth, Google OAuth, and React Router.
+
 This app includes a polished login flow using Supabase Auth:
 
 - Google OAuth (signup + login)
