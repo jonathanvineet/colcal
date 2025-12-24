@@ -1,8 +1,9 @@
 #root {
-  max-width: 1280px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
 }
 
 /* App overrides (kept minimal) */
+.card h1 { font-family: "Orbitron", system-ui; }

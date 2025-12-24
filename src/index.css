@@ -1,11 +1,21 @@
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Futuristic monochrome palette */
+  --bg-900: #0a0a0a;
+  --bg-800: #111213;
+  --bg-700: #161718;
+  --fg-100: #e6e7e8;
+  --fg-300: #b7bcc1;
+  --fg-500: #8a9097;
+  --line-600: #2a2b2d;
+  --accent: #e6e7e8; /* monochrome accent */
+  --glow: rgba(230, 231, 232, 0.25);
+
+  font-family: "Orbitron", "Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: dark;
+  color: var(--fg-100);
+  background-color: var(--bg-900);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,14 +23,8 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
+a { font-weight: 600; color: var(--fg-100); text-decoration: none; }
+a:hover { text-decoration: underline; }
 
 body {
   margin: 0;
@@ -28,66 +32,74 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  /* Layered grid + vignette background for robotic feel */
+  background:
+    radial-gradient(1200px 700px at 80% -100px, rgba(255,255,255,0.06), transparent 60%),
+    radial-gradient(800px 400px at -20% -200px, rgba(255,255,255,0.04), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.0)),
+    repeating-linear-gradient(90deg, transparent 0 23px, var(--line-600) 23px 24px),
+    repeating-linear-gradient(0deg, transparent 0 23px, var(--line-600) 23px 24px),
+    var(--bg-900);
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
+h1 { font-size: 3rem; line-height: 1.1; letter-spacing: 0.04em; text-transform: uppercase; }
 
 /* Auth & UI */
 .auth-container { display: grid; place-items: center; width: 100%; padding: 24px; }
-.card { background: rgba(0,0,0,0.04); border: 1px solid rgba(0,0,0,0.08); padding: 24px; border-radius: 16px; max-width: 560px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+.card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  border: 1px solid var(--line-600);
+  padding: 24px;
+  border-radius: 16px;
+  max-width: 640px;
+  width: 100%;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 30px 80px rgba(0,0,0,0.5), 0 0 60px var(--glow) inset;
+  backdrop-filter: blur(6px);
+}
 .auth-card h1 { margin: 0 0 8px; }
-.muted { color: #9aa3af; }
+.muted { color: var(--fg-500); }
 .small { font-size: 12px; }
-.btn { border: 1px solid rgba(0,0,0,0.15); background: #1a1a1a; color: inherit; padding: 10px 14px; border-radius: 10px; }
-.btn.primary { background: #646cff; border-color: #646cff; color: white; }
+.btn { border: 1px solid var(--line-600); background: var(--bg-800); color: var(--fg-100); padding: 10px 14px; border-radius: 10px; }
+.btn.primary { background: var(--bg-700); border-color: var(--line-600); color: var(--fg-100); box-shadow: 0 0 12px var(--glow); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.oauth-grid { display: grid; gap: 8px; margin: 16px 0; }
-.oauth-btn { text-align: center; }
-.divider { position: relative; text-align: center; margin: 8px 0 16px; color: #9aa3af; }
-.divider::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(0,0,0,0.15); }
-.divider > span { background: inherit; padding: 0 8px; position: relative; z-index: 1; }
-.magic-form { display: grid; gap: 8px; }
-.magic-form input { padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.15); background: transparent; color: inherit; }
-.hint { margin: 8px 0 0; }
-.hint.error { color: #ff6b6b; }
 .home { width: 100%; padding: 24px; }
-.user-box { background: rgba(0,0,0,0.06); padding: 12px; border-radius: 10px; overflow: auto; }
-.calendar-wrapper { background: rgba(0,0,0,0.02); border: 1px solid rgba(0,0,0,0.08); border-radius: 12px; padding: 12px; }
-.fc .fc-toolbar-title { font-size: 1.25rem; }
-.fc .fc-button { background: #1a1a1a; border: 1px solid rgba(0,0,0,0.15); }
-.fc .fc-button-primary:not(:disabled).fc-button-active, .fc .fc-button-primary:focus { box-shadow: none; }
+.user-box { background: var(--bg-700); padding: 12px; border-radius: 10px; overflow: auto; border: 1px solid var(--line-600); }
+.calendar-wrapper {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid var(--line-600);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 10px 40px rgba(0,0,0,0.45), 0 0 40px var(--glow) inset;
+}
+
+/* FullCalendar futuristic styling */
+.fc .fc-toolbar { align-items: center; }
+.fc .fc-toolbar-title { font-size: 1.25rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.fc .fc-button { background: var(--bg-800); border: 1px solid var(--line-600); color: var(--fg-100); text-transform: uppercase; letter-spacing: 0.08em; }
+.fc .fc-button:hover { box-shadow: 0 0 0 1px var(--line-600), 0 0 16px var(--glow) inset; }
+.fc .fc-button-primary:not(:disabled).fc-button-active, .fc .fc-button-primary:focus { box-shadow: 0 0 0 1px var(--line-600), 0 0 16px var(--glow) inset; }
+.fc .fc-daygrid-day, .fc .fc-timegrid-slot { background: rgba(255,255,255,0.02); }
+.fc .fc-daygrid-day-number { color: var(--fg-300); }
+.fc .fc-event { background: var(--bg-700); border: 1px solid var(--line-600); color: var(--fg-100); box-shadow: 0 0 12px var(--glow); }
+.fc-theme-standard td, .fc-theme-standard th { border-color: var(--line-600); }
 
 button {
   border-radius: 8px;
-  border: 1px solid transparent;
+  border: 1px solid var(--line-600);
   padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
+  font-size: 0.95em;
+  font-weight: 600;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: var(--bg-800);
+  color: var(--fg-100);
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: box-shadow 0.25s, transform 0.08s;
 }
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
+button:hover { box-shadow: 0 0 18px var(--glow) inset; }
+button:active { transform: translateY(1px); }
+button:focus, button:focus-visible { outline: 2px solid var(--line-600); }
 
+/* Light mode reduced to keep monochrome identity consistent */
 @media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+  :root { color: #111; background-color: #f5f5f5; }
 }

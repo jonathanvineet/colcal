@@ -2,10 +2,11 @@ import supabase from './supabaseClient'
 
 export async function ensureProfile(user) {
   if (!user?.id) return { error: new Error('No user') }
+  const email = user.email || user.primaryEmailAddress?.emailAddress || null
   return supabase.from('profiles').upsert(
     {
       id: user.id,
-      email: user.email || null,
+      email,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'id' }
