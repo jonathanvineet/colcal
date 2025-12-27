@@ -61,7 +61,6 @@ export default function Home() {
 
   return (
     <div style={{
-      minHeight: '100vh',
       background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
       fontFamily: "'Inter', 'Montserrat', sans-serif"
     }}>
@@ -180,7 +179,7 @@ export default function Home() {
           gridTemplateRows: 'auto auto',
           gap: '20px',
           maxWidth: '1600px',
-          margin: '80px auto 0'
+          margin: '80px auto 24px'
         }}>
           {/* Your Teams Card - Top Left */}
           <YourTeamsCard teams={teams} />

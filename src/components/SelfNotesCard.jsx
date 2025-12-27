@@ -12,7 +12,9 @@ export default function SelfNotesCard({ notes, setNotes }) {
       ...glassStyle,
       gridColumn: 'span 4',
       gridRow: '2',
-      padding: '24px'
+      padding: '24px',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
       <div style={{ 
         display: 'flex', 
@@ -41,8 +43,8 @@ export default function SelfNotesCard({ notes, setNotes }) {
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Write your notes here..."
         style={{
+          flex: 1,
           width: '100%',
-          height: 'calc(100% - 80px)',
           minHeight: '200px',
           background: 'rgba(255, 255, 255, 0.03)',
           border: '1px solid rgba(255, 255, 255, 0.15)',
@@ -54,7 +56,8 @@ export default function SelfNotesCard({ notes, setNotes }) {
           resize: 'none',
           outline: 'none',
           lineHeight: '1.8',
-          transition: 'all 0.3s'
+          transition: 'all 0.3s',
+          boxSizing: 'border-box'
         }}
         onFocus={(e) => {
           e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'

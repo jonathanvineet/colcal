@@ -12,7 +12,7 @@ export default function CalendarCard({ currentMonth, currentYear, currentDay, ca
       ...glassStyle,
       gridColumn: 'span 5',
       gridRow: 'span 2',
-      padding: '36px'
+      padding: '24px'
     }}>
       <h2 style={{ 
         color: 'white', 
@@ -28,7 +28,7 @@ export default function CalendarCard({ currentMonth, currentYear, currentDay, ca
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(7, 1fr)', 
-        gap: '14px'
+        gap: '8px'
       }}>
         {/* Day Headers */}
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -37,7 +37,7 @@ export default function CalendarCard({ currentMonth, currentYear, currentDay, ca
             color: 'rgba(255, 255, 255, 0.5)',
             fontSize: '13px',
             fontWeight: '700',
-            padding: '10px',
+            padding: '8px',
             letterSpacing: '1px'
           }}>
             {day}
@@ -64,7 +64,8 @@ export default function CalendarCard({ currentMonth, currentYear, currentDay, ca
             position: 'relative',
             boxShadow: day === currentDay 
               ? '0 0 30px rgba(100, 108, 255, 0.5), inset 0 0 20px rgba(100, 108, 255, 0.2)' 
-              : 'none'
+              : 'none',
+            overflow: 'hidden'
           }}
           onMouseEnter={(e) => {
             if (day) {
@@ -96,40 +97,7 @@ export default function CalendarCard({ currentMonth, currentYear, currentDay, ca
                 }}>
                   {day}
                 </span>
-                {/* Colored dots for scheduled tasks */}
-                {day % 3 === 0 && (
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '4px', 
-                    marginTop: '6px',
-                    position: 'absolute',
-                    bottom: '10px'
-                  }}>
-                    <div style={{ 
-                      width: '6px', 
-                      height: '6px', 
-                      borderRadius: '50%', 
-                      backgroundColor: '#3b82f6',
-                      boxShadow: '0 0 8px #3b82f6'
-                    }} />
-                    <div style={{ 
-                      width: '6px', 
-                      height: '6px', 
-                      borderRadius: '50%', 
-                      backgroundColor: '#22c55e',
-                      boxShadow: '0 0 8px #22c55e'
-                    }} />
-                    {day % 2 === 0 && (
-                      <div style={{ 
-                        width: '6px', 
-                        height: '6px', 
-                        borderRadius: '50%', 
-                        backgroundColor: '#f97316',
-                        boxShadow: '0 0 8px #f97316'
-                      }} />
-                    )}
-                  </div>
-                )}
+                
               </>
             )}
           </div>
