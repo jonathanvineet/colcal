@@ -173,13 +173,13 @@ export default function Home() {
       {user ? (
         <div style={{ 
           marginTop: '80px',
-          padding: '24px',
+          padding: '10px',
           display: 'grid',
           gridTemplateColumns: 'repeat(12, 1fr)',
-          gridTemplateRows: 'auto auto',
-          gap: '20px',
-          maxWidth: '1600px',
-          margin: '80px auto 24px'
+          gridTemplateRows: 'minmax(400px, auto) minmax(400px, auto)',
+          gap: '32px',
+          width: '99.5%',
+          margin: '80px auto 60px'
         }}>
           {/* Your Teams Card - Top Left */}
           <YourTeamsCard teams={teams} />

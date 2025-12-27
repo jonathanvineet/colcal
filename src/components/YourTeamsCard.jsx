@@ -11,7 +11,6 @@ export default function YourTeamsCard({ teams }) {
     <div style={{ 
       ...glassStyle,
       gridColumn: 'span 3',
-      gridRow: '1',
       padding: '24px'
     }}>
       <div style={{ 

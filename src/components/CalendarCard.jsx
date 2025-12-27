@@ -10,13 +10,13 @@ export default function CalendarCard({ currentMonth, currentYear, currentDay, ca
   return (
     <div style={{ 
       ...glassStyle,
-      gridColumn: 'span 5',
+      gridColumn: 'span 6',
       gridRow: 'span 2',
       padding: '24px'
     }}>
       <h2 style={{ 
         color: 'white', 
-        fontSize: '32px', 
+        fontSize: '42px', 
         fontWeight: '700', 
         marginBottom: '32px',
         textAlign: 'center',
@@ -28,14 +28,14 @@ export default function CalendarCard({ currentMonth, currentYear, currentDay, ca
       <div style={{ 
         display: 'grid', 
         gridTemplateColumns: 'repeat(7, 1fr)', 
-        gap: '8px'
+        gap: '12px'
       }}>
         {/* Day Headers */}
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
           <div key={day} style={{ 
             textAlign: 'center', 
             color: 'rgba(255, 255, 255, 0.5)',
-            fontSize: '13px',
+            fontSize: '16px',
             fontWeight: '700',
             padding: '8px',
             letterSpacing: '1px'
@@ -92,7 +92,7 @@ export default function CalendarCard({ currentMonth, currentYear, currentDay, ca
               <>
                 <span style={{ 
                   color: 'white', 
-                  fontSize: '18px',
+                  fontSize: '24px',
                   fontWeight: day === currentDay ? '800' : '600'
                 }}>
                   {day}

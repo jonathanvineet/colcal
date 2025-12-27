@@ -10,7 +10,7 @@ export default function SelfNotesCard({ notes, setNotes }) {
   return (
     <div style={{ 
       ...glassStyle,
-      gridColumn: 'span 4',
+      gridColumn: 'span 3',
       gridRow: '2',
       padding: '24px',
       display: 'flex',

@@ -10,9 +10,8 @@ export default function CurrentDateCard({ currentDay, currentMonth }) {
   return (
     <div style={{ 
       ...glassStyle,
-      gridColumn: 'span 4',
-      gridRow: '1',
-      padding: '40px',
+      gridColumn: 'span 3',
+      padding: '32px',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
