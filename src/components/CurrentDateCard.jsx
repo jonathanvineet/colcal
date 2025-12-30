@@ -1,3 +1,5 @@
+'use client'
+
 const glassStyle = {
   background: 'rgba(255, 255, 255, 0.05)',
   backdropFilter: 'blur(20px)',

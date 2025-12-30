@@ -1,6 +1,8 @@
+'use client'
+
 import { useState } from 'react'
-import { useAuth } from '../auth/context'
-import { SignInButton, SignUpButton, UserButton } from '@clerk/clerk-react'
+import { useUser } from '@clerk/nextjs'
+import { UserButton } from '@clerk/nextjs'
 import Calendar from '../components/Calendar'
 import YourTeamsCard from '../components/YourTeamsCard'
 import CurrentDateCard from '../components/CurrentDateCard'
@@ -17,8 +19,7 @@ const glassStyle = {
 }
 
 export default function Home() {
-  const { user } = useAuth()
-  const [showAuthMenu, setShowAuthMenu] = useState(false)
+  const { user } = useUser()
   const [notes, setNotes] = useState('')
   
   const today = new Date()
@@ -91,149 +92,47 @@ export default function Home() {
           Colcal
         </h1>
         
-        {user ? (
-          <UserButton 
-            afterSignOutUrl="/login"
-            appearance={{
-              elements: {
-                avatarBox: "w-10 h-10"
-              }
-            }}
-          />
-        ) : (
-          <div style={{ position: 'relative' }}>
-            <button 
-              onClick={() => setShowAuthMenu(!showAuthMenu)}
-              style={{
-                background: 'linear-gradient(135deg, #646cff, #a855f7)',
-                color: 'white',
-                padding: '10px 20px',
-                borderRadius: '12px',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '600',
-                boxShadow: '0 4px 15px rgba(100, 108, 255, 0.4)'
-              }}
-            >
-              Account
-            </button>
-            
-            {showAuthMenu && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                right: 0,
-                marginTop: '8px',
-                ...glassStyle,
-                padding: '12px',
-                minWidth: '160px',
-                zIndex: 1001
-              }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <SignInButton mode="modal">
-                    <button style={{
-                      width: '100%',
-                      padding: '10px',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      color: 'white',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '500'
-                    }}>
-                      Sign In
-                    </button>
-                  </SignInButton>
-                  
-                  <SignUpButton mode="modal">
-                    <button style={{
-                      width: '100%',
-                      padding: '10px',
-                      background: 'linear-gradient(135deg, #646cff, #a855f7)',
-                      border: 'none',
-                      color: 'white',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      fontWeight: '600'
-                    }}>
-                      Sign Up
-                    </button>
-                  </SignUpButton>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        <UserButton 
+          afterSignOutUrl="/login"
+          appearance={{
+            elements: {
+              avatarBox: "w-10 h-10"
+            }
+          }}
+        />
       </div>
 
       {/* Main Content */}
-      {user ? (
-        <div style={{ 
-          marginTop: '80px',
-          padding: '10px',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(12, 1fr)',
-          gridTemplateRows: 'minmax(400px, auto) minmax(400px, auto)',
-          gap: '32px',
-          width: '99.5%',
-          margin: '80px auto 60px'
-        }}>
-          {/* Your Teams Card - Top Left */}
-          <YourTeamsCard teams={teams} />
+      <div style={{ 
+        marginTop: '80px',
+        padding: '10px',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(12, 1fr)',
+        gridTemplateRows: 'minmax(400px, auto) minmax(400px, auto)',
+        gap: '32px',
+        width: '99.5%',
+        margin: '80px auto 60px'
+      }}>
+        {/* Your Teams Card - Top Left */}
+        <YourTeamsCard teams={teams} />
 
-          {/* Current Date Card - Top Middle */}
-          <CurrentDateCard currentDay={currentDay} currentMonth={currentMonth} />
+        {/* Current Date Card - Top Middle */}
+        <CurrentDateCard currentDay={currentDay} currentMonth={currentMonth} />
 
-          {/* Calendar Card - Extreme Right (spans both rows) */}
-          <CalendarCard 
-            currentMonth={currentMonth} 
-            currentYear={currentYear}
-            currentDay={currentDay}
-            calendarDays={calendarDays}
-          />
+        {/* Calendar Card - Extreme Right (spans both rows) */}
+        <CalendarCard 
+          currentMonth={currentMonth} 
+          currentYear={currentYear}
+          currentDay={currentDay}
+          calendarDays={calendarDays}
+        />
 
-          {/* Today's Work Card - Bottom Left */}
-          <TodaysWorkCard todaysWork={todaysWork} />
+        {/* Today's Work Card - Bottom Left */}
+        <TodaysWorkCard todaysWork={todaysWork} />
 
-          {/* Self Notes Card - Bottom Middle */}
-          <SelfNotesCard notes={notes} setNotes={setNotes} />
-        </div>
-      ) : (
-        <div style={{ 
-          marginTop: '80px',
-          padding: '40px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: 'calc(100vh - 80px)'
-        }}>
-          <div style={{ 
-            ...glassStyle,
-            padding: '60px',
-            textAlign: 'center',
-            maxWidth: '500px'
-          }}>
-            <h2 style={{ 
-              color: 'white', 
-              fontSize: '28px', 
-              fontWeight: '600',
-              marginBottom: '16px'
-            }}>
-              Welcome to Colcal
-            </h2>
-            <p style={{ 
-              color: 'rgba(255, 255, 255, 0.6)', 
-              fontSize: '16px',
-              marginBottom: '24px'
-            }}>
-              Please sign in to access your collaborative calendar and manage your teams.
-            </p>
-          </div>
-        </div>
-      )}
+        {/* Self Notes Card - Bottom Middle */}
+        <SelfNotesCard notes={notes} setNotes={setNotes} />
+      </div>
     </div>
   )
 }
