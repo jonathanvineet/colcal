@@ -9,6 +9,7 @@ import CurrentDateCard from '../components/CurrentDateCard'
 import CalendarCard from '../components/CalendarCard'
 import TodaysWorkCard from '../components/TodaysWorkCard'
 import SelfNotesCard from '../components/SelfNotesCard'
+import DotGrid from '../components/background'
 
 const glassStyle = {
   background: 'rgba(255, 255, 255, 0.05)',
@@ -62,10 +63,35 @@ export default function Home() {
 
   return (
     <div style={{
-      background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
+      position: 'relative',
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
       fontFamily: "'Inter', 'Montserrat', sans-serif"
     }}>
-      {/* Top Navigation Bar */}
+      {/* Animated Dot Grid Background */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 0,
+        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)'
+      }}>
+        <DotGrid 
+          dotSize={4}
+          gap={24}
+          baseColor="#1a1a1a"
+          activeColor="#646cff"
+          proximity={120}
+          speedTrigger={80}
+          shockRadius={200}
+          shockStrength={6}
+          style={{ width: '100%', height: '100%' }}
+        />
+      </div>
       <div style={{
         position: 'fixed',
         top: 0,
@@ -75,7 +101,7 @@ export default function Home() {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
         backdropFilter: 'blur(10px)',
         zIndex: 1000,
         borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
@@ -102,36 +128,49 @@ export default function Home() {
         />
       </div>
 
-      {/* Main Content */}
-      <div style={{ 
-        marginTop: '80px',
-        padding: '10px',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(12, 1fr)',
-        gridTemplateRows: 'minmax(400px, auto) minmax(400px, auto)',
-        gap: '32px',
-        width: '99.5%',
-        margin: '80px auto 60px'
+      {/* Main Content Container */}
+      <div style={{
+        marginTop: '100px',
+        marginBottom: '40px',
+        padding: '32px',
+        maxWidth: '1400px',
+        width: '100%',
+        backgroundColor: 'rgba(10, 10, 10, 0.85)',
+        backdropFilter: 'blur(20px)',
+        borderRadius: '24px',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+        position: 'relative',
+        zIndex: 1
       }}>
-        {/* Your Teams Card - Top Left */}
-        <YourTeamsCard teams={teams} />
+        {/* Main Content Grid */}
+        <div style={{ 
+          display: 'grid',
+          gridTemplateColumns: 'repeat(12, 1fr)',
+          gridTemplateRows: 'minmax(400px, auto) minmax(400px, auto)',
+          gap: '32px',
+          width: '100%'
+        }}>
+          {/* Your Teams Card - Top Left */}
+          <YourTeamsCard teams={teams} />
 
-        {/* Current Date Card - Top Middle */}
-        <CurrentDateCard currentDay={currentDay} currentMonth={currentMonth} />
+          {/* Current Date Card - Top Middle */}
+          <CurrentDateCard currentDay={currentDay} currentMonth={currentMonth} />
 
-        {/* Calendar Card - Extreme Right (spans both rows) */}
-        <CalendarCard 
-          currentMonth={currentMonth} 
-          currentYear={currentYear}
-          currentDay={currentDay}
-          calendarDays={calendarDays}
-        />
+          {/* Calendar Card - Extreme Right (spans both rows) */}
+          <CalendarCard 
+            currentMonth={currentMonth} 
+            currentYear={currentYear}
+            currentDay={currentDay}
+            calendarDays={calendarDays}
+          />
 
-        {/* Today's Work Card - Bottom Left */}
-        <TodaysWorkCard todaysWork={todaysWork} />
+          {/* Today's Work Card - Bottom Left */}
+          <TodaysWorkCard todaysWork={todaysWork} />
 
-        {/* Self Notes Card - Bottom Middle */}
-        <SelfNotesCard notes={notes} setNotes={setNotes} />
+          {/* Self Notes Card - Bottom Middle */}
+          <SelfNotesCard notes={notes} setNotes={setNotes} />
+        </div>
       </div>
     </div>
   )

@@ -34,7 +34,11 @@ export default function YourTeamsCard({ teams }) {
           cursor: 'pointer',
           fontSize: '20px',
           fontWeight: '600',
-          transition: 'all 0.3s'
+          transition: 'all 0.3s',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 0
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.background = 'rgba(100, 108, 255, 0.3)'

@@ -29,7 +29,8 @@ a:hover { text-decoration: underline; }
 body {
   margin: 0;
   display: flex;
-  place-items: center;
+  justify-content: center;
+  align-items: flex-start;
   min-width: 320px;
   min-height: 100vh;
   /* Layered grid + vignette background for robotic feel */
@@ -62,7 +63,7 @@ h1 { font-size: 3rem; line-height: 1.1; letter-spacing: 0.04em; text-transform: 
 .btn { border: 1px solid var(--line-600); background: var(--bg-800); color: var(--fg-100); padding: 10px 14px; border-radius: 10px; }
 .btn.primary { background: var(--bg-700); border-color: var(--line-600); color: var(--fg-100); box-shadow: 0 0 12px var(--glow); }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.home { width: 100%; padding: 24px; }
+.home { width: 100%; max-width: 1400px; padding: 24px; margin: 0 auto; }
 .user-box { background: var(--bg-700); padding: 12px; border-radius: 10px; overflow: auto; border: 1px solid var(--line-600); }
 .calendar-wrapper {
   background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
