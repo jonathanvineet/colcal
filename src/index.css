@@ -80,23 +80,26 @@ h1 {
   align-items: center;
   min-height: 100vh;
   padding: 20px;
+  width: 100%;
 }
 
 .auth-card {
   width: 100%;
-  max-width: 500px;
+  max-width: 580px;
   text-align: center;
 }
 
 .auth-card h1 {
   margin: 0 0 8px 0;
   font-size: 2.5rem;
+  text-align: center;
 }
 
 .auth-card > p {
   margin: 0 0 24px 0;
   color: var(--fg-500);
   font-size: 14px;
+  text-align: center;
 }
 
 /* Button Styles */
@@ -173,21 +176,75 @@ textarea:focus {
   --color-neutral-900: var(--bg-800);
   --color-neutral: var(--bg-700);
   --color-text: var(--fg-100);
+  width: 100% !important;
+  max-width: 580px !important;
+  margin: 0 auto !important;
+}
+
+.cl-rootBox {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin: 0 auto !important;
 }
 
 .cl-signIn-root,
 .cl-signUp-root {
   width: 100% !important;
+  max-width: 580px !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
 }
 
 .cl-card {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
+  width: 100% !important;
+  max-width: 580px !important;
+  margin: 0 auto !important;
+}
+
+.cl-socialButtonsBlockButton {
+  width: 100% !important;
+}
+
+.cl-formButtonPrimary {
+  width: 100% !important;
 }
 
 .cl-footerAction {
   margin-top: 16px;
+  display: flex !important;
+  justify-content: center !important;
+}
+
+/* Additional Clerk container centering */
+.cl-form {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+}
+
+.cl-formContainer {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  margin: 0 auto !important;
+}
+
+.cl-formFieldsContainer {
+  width: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
 }
 
 /* FullCalendar Styling */

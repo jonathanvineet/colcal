@@ -31,21 +31,21 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page">
-      <div className="card auth-card">
+      <div className="card auth-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
         <h1>Access Control</h1>
         <p className="muted">Authenticate to continue</p>
-        <div style={{ marginTop: 24 }}>
+        <div style={{ marginTop: 24, width: '100%', display: 'flex', justifyContent: 'center' }}>
           <SignIn
             appearance={{
               baseTheme: dark,
               elements: {
-                rootBox: 'w-full',
-                card: 'bg-transparent shadow-none border-0',
-                headerTitle: 'text-2xl font-bold text-white',
-                headerSubtitle: 'text-sm text-gray-400',
-                socialButtonsBlockButton: 'bg-neutral-800 border border-neutral-700 hover:bg-neutral-700',
-                formButtonPrimary: 'bg-neutral-700 border border-neutral-600 hover:bg-neutral-600',
-                formFieldInput: 'bg-neutral-900 border border-neutral-700 text-white',
+                rootBox: 'w-full flex justify-center',
+                card: 'bg-transparent shadow-none border-0 w-full max-w-sm',
+                headerTitle: 'text-2xl font-bold text-white text-center',
+                headerSubtitle: 'text-sm text-gray-400 text-center',
+                socialButtonsBlockButton: 'bg-neutral-800 border border-neutral-700 hover:bg-neutral-700 w-full',
+                formButtonPrimary: 'bg-neutral-700 border border-neutral-600 hover:bg-neutral-600 w-full',
+                formFieldInput: 'bg-neutral-900 border border-neutral-700 text-white w-full',
                 formFieldLabel: 'text-neutral-300',
                 footerActionLink: 'text-blue-400 hover:text-blue-300',
               },
