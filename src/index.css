@@ -7,7 +7,7 @@
   --fg-300: #b7bcc1;
   --fg-500: #8a9097;
   --line-600: #2a2b2d;
-  --accent: #e6e7e8; /* monochrome accent */
+  --accent: #e6e7e8;
   --glow: rgba(230, 231, 232, 0.25);
 
   font-family: "Orbitron", "Rajdhani", system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Helvetica, Arial, sans-serif;
@@ -23,17 +23,19 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a { font-weight: 600; color: var(--fg-100); text-decoration: none; }
-a:hover { text-decoration: underline; }
+* {
+  box-sizing: border-box;
+}
 
+html,
 body {
   margin: 0;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  min-width: 320px;
+  padding: 0;
+  width: 100%;
+}
+
+body {
   min-height: 100vh;
-  /* Layered grid + vignette background for robotic feel */
   background:
     radial-gradient(1200px 700px at 80% -100px, rgba(255,255,255,0.06), transparent 60%),
     radial-gradient(800px 400px at -20% -200px, rgba(255,255,255,0.04), transparent 60%),
@@ -43,47 +45,61 @@ body {
     var(--bg-900);
 }
 
-h1 { font-size: 3rem; line-height: 1.1; letter-spacing: 0.04em; text-transform: uppercase; }
+a {
+  font-weight: 600;
+  color: var(--fg-100);
+  text-decoration: none;
+}
 
-/* Auth & UI */
-.auth-container { display: grid; place-items: center; width: 100%; padding: 24px; }
+a:hover {
+  text-decoration: underline;
+}
+
+h1 {
+  font-size: 3rem;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* Card Base Styles */
 .card {
   background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
   border: 1px solid var(--line-600);
   padding: 24px;
   border-radius: 16px;
-  max-width: 640px;
-  width: 100%;
   box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 30px 80px rgba(0,0,0,0.5), 0 0 60px var(--glow) inset;
   backdrop-filter: blur(6px);
 }
-.auth-card h1 { margin: 0 0 8px; }
-.muted { color: var(--fg-500); }
-.small { font-size: 12px; }
-.btn { border: 1px solid var(--line-600); background: var(--bg-800); color: var(--fg-100); padding: 10px 14px; border-radius: 10px; }
-.btn.primary { background: var(--bg-700); border-color: var(--line-600); color: var(--fg-100); box-shadow: 0 0 12px var(--glow); }
-.btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.home { width: 100%; max-width: 1400px; padding: 24px; margin: 0 auto; }
-.user-box { background: var(--bg-700); padding: 12px; border-radius: 10px; overflow: auto; border: 1px solid var(--line-600); }
-.calendar-wrapper {
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-  border: 1px solid var(--line-600);
-  border-radius: 16px;
-  padding: 12px;
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 10px 40px rgba(0,0,0,0.45), 0 0 40px var(--glow) inset;
+
+/* Auth Page Styles */
+.auth-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
 }
 
-/* FullCalendar futuristic styling */
-.fc .fc-toolbar { align-items: center; }
-.fc .fc-toolbar-title { font-size: 1.25rem; letter-spacing: 0.06em; text-transform: uppercase; }
-.fc .fc-button { background: var(--bg-800); border: 1px solid var(--line-600); color: var(--fg-100); text-transform: uppercase; letter-spacing: 0.08em; }
-.fc .fc-button:hover { box-shadow: 0 0 0 1px var(--line-600), 0 0 16px var(--glow) inset; }
-.fc .fc-button-primary:not(:disabled).fc-button-active, .fc .fc-button-primary:focus { box-shadow: 0 0 0 1px var(--line-600), 0 0 16px var(--glow) inset; }
-.fc .fc-daygrid-day, .fc .fc-timegrid-slot { background: rgba(255,255,255,0.02); }
-.fc .fc-daygrid-day-number { color: var(--fg-300); }
-.fc .fc-event { background: var(--bg-700); border: 1px solid var(--line-600); color: var(--fg-100); box-shadow: 0 0 12px var(--glow); }
-.fc-theme-standard td, .fc-theme-standard th { border-color: var(--line-600); }
+.auth-card {
+  width: 100%;
+  max-width: 500px;
+  text-align: center;
+}
 
+.auth-card h1 {
+  margin: 0 0 8px 0;
+  font-size: 2.5rem;
+}
+
+.auth-card > p {
+  margin: 0 0 24px 0;
+  color: var(--fg-500);
+  font-size: 14px;
+}
+
+/* Button Styles */
 button {
   border-radius: 8px;
   border: 1px solid var(--line-600);
@@ -96,11 +112,211 @@ button {
   cursor: pointer;
   transition: box-shadow 0.25s, transform 0.08s;
 }
-button:hover { box-shadow: 0 0 18px var(--glow) inset; }
-button:active { transform: translateY(1px); }
-button:focus, button:focus-visible { outline: 2px solid var(--line-600); }
 
-/* Light mode reduced to keep monochrome identity consistent */
+button:hover {
+  box-shadow: 0 0 18px var(--glow) inset;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--bg-700);
+  border-color: var(--line-600);
+  color: var(--fg-100);
+  box-shadow: 0 0 12px var(--glow);
+}
+
+/* Form Elements */
+input,
+textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line-600);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--fg-100);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--fg-500);
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--glow) inset;
+}
+
+/* Text Utilities */
+.muted {
+  color: var(--fg-500);
+}
+
+.small {
+  font-size: 12px;
+}
+
+/* Clerk Customization */
+.cl-root {
+  --color-primary: var(--fg-100);
+  --color-primary-500: var(--fg-100);
+  --color-neutral-900: var(--bg-800);
+  --color-neutral: var(--bg-700);
+  --color-text: var(--fg-100);
+}
+
+.cl-signIn-root,
+.cl-signUp-root {
+  width: 100% !important;
+}
+
+.cl-card {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.cl-footerAction {
+  margin-top: 16px;
+}
+
+/* FullCalendar Styling */
+.fc {
+  font-family: inherit;
+}
+
+.fc .fc-toolbar {
+  align-items: center;
+  padding: 12px 0;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1.25rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.fc .fc-button {
+  background: var(--bg-800);
+  border: 1px solid var(--line-600);
+  color: var(--fg-100);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.fc .fc-button:hover {
+  box-shadow: 0 0 0 1px var(--line-600), 0 0 16px var(--glow) inset;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:focus {
+  box-shadow: 0 0 0 1px var(--line-600), 0 0 16px var(--glow) inset;
+}
+
+.fc .fc-daygrid-day,
+.fc .fc-timegrid-slot {
+  background: rgba(255,255,255,0.02);
+}
+
+.fc .fc-daygrid-day-number {
+  color: var(--fg-300);
+}
+
+.fc .fc-event {
+  background: var(--bg-700);
+  border: 1px solid var(--line-600);
+  color: var(--fg-100);
+  box-shadow: 0 0 12px var(--glow);
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-color: var(--line-600);
+}
+
+/* Home Page */
+.home-page {
+  min-height: 100vh;
+  padding-top: 80px;
+  padding-bottom: 40px;
+}
+
+.home-container {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 32px;
+}
+
+.header-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+}
+
+.header-bar h1 {
+  font-size: 24px;
+  margin: 0;
+}
+
+.user-box {
+  background: var(--bg-700);
+  padding: 12px;
+  border-radius: 10px;
+  overflow: auto;
+  border: 1px solid var(--line-600);
+}
+
+.calendar-wrapper {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border: 1px solid var(--line-600);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.02), 0 10px 40px rgba(0,0,0,0.45), 0 0 40px var(--glow) inset;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2rem;
+  }
+
+  .auth-card h1 {
+    font-size: 2rem;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .home-container {
+    padding: 16px;
+  }
+}
+
 @media (prefers-color-scheme: light) {
-  :root { color: #111; background-color: #f5f5f5; }
+  :root {
+    color: #111;
+    background-color: #f5f5f5;
+  }
 }

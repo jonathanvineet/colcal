@@ -4,7 +4,7 @@ import '../src/index.css'
 import '../src/App.css'
 
 export const metadata = {
-  title: 'colcal',
+  title: 'Colcal',
   description: 'Collaborative Calendar Application',
 }
 
@@ -25,7 +25,11 @@ export default function RootLayout({ children }) {
             rel="stylesheet"
           />
         </head>
-        <body>{children}</body>
+        <body>
+          <div id="root">
+            {children}
+          </div>
+        </body>
       </html>
     </ClerkProvider>
   )
