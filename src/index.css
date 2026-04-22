@@ -316,6 +316,78 @@ textarea:focus {
   padding: 32px;
 }
 
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 420px));
+  justify-content: center;
+  gap: 24px;
+}
+
+.inline-add-form {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.inline-add-time {
+  width: 120px;
+}
+
+.inline-add-input {
+  min-width: 0;
+}
+
+.inline-add-select {
+  min-width: 160px;
+}
+
+.inline-add-button {
+  min-width: 72px;
+  white-space: nowrap;
+  padding: 10px 14px;
+}
+
+.task-add-form {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 132px;
+  grid-template-areas:
+    'time team team'
+    'task task add';
+  align-items: center;
+  gap: 8px;
+}
+
+.task-add-control {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.task-add-time {
+  grid-area: time;
+  width: 100%;
+}
+
+.task-add-team {
+  grid-area: team;
+  width: 100%;
+}
+
+.task-add-input {
+  grid-area: task;
+  width: 100%;
+}
+
+.task-add-submit {
+  grid-area: add;
+  min-height: 34px;
+  min-width: 132px;
+  padding: 8px 18px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .header-bar {
   position: fixed;
   top: 0;
@@ -368,6 +440,40 @@ textarea:focus {
 
   .home-container {
     padding: 16px;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .inline-add-form {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-add-time {
+    width: 100%;
+  }
+
+  .inline-add-button {
+    width: 100%;
+  }
+
+  .inline-add-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .task-add-form {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'time'
+      'team'
+      'task'
+      'add';
+  }
+
+  .task-add-submit {
+    width: 100%;
   }
 }
 
