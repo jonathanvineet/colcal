@@ -352,6 +352,9 @@ textarea:focus {
 
 .left-rail {
   grid-area: left;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .center-calendar-zone {
@@ -376,6 +379,88 @@ textarea:focus {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.member-add-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px 72px;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.member-add-input,
+.member-add-submit {
+  min-height: 34px;
+  font-size: 13px;
+}
+
+.member-view-toggle-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-600);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.member-view-toggle-icon {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--fg-300);
+  border-radius: 2px;
+  box-sizing: border-box;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.member-view-toggle-btn.is-all .member-view-toggle-icon {
+  box-shadow:
+    0 0 0 1px rgba(100, 108, 255, 0.12),
+    6px 0 0 -1px var(--fg-300),
+    0 6px 0 -1px var(--fg-300),
+    6px 6px 0 -1px var(--fg-300);
+  transform: scale(0.9);
+}
+
+.member-view-toggle-btn.is-all {
+  border-color: var(--accent-primary);
+  background: linear-gradient(180deg, var(--accent-primary-soft), rgba(100, 108, 255, 0.08));
+  box-shadow: 0 0 12px rgba(100, 108, 255, 0.25);
+}
+
+.member-add-submit {
+  white-space: nowrap;
+  padding: 8px 12px;
+}
+
+.members-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.member-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-600);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.member-remove-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .inline-add-form {
@@ -533,6 +618,15 @@ textarea:focus {
     flex-direction: column;
     align-items: flex-start;
   }
+
+  .member-add-form {
+    grid-template-columns: minmax(0, 1fr) 34px;
+  }
+
+  .member-add-submit {
+    grid-column: 1 / -1;
+  }
+
 
   .inline-add-form {
     grid-template-columns: 1fr;

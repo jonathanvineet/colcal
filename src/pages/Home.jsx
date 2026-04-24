@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useUser, UserButton } from '@clerk/nextjs'
 import YourTeamsCard from '../components/YourTeamsCard'
 import Calendar from '../components/Calendar'
+import TeamMembersCard from '../components/TeamMembersCard'
 
 const DEFAULT_TEAMS = [
   { name: 'Design Squad', color: '#3b82f6' },
@@ -15,6 +16,62 @@ const DEFAULT_TEAMS = [
 const TEAMS_STORAGE_KEY = 'colcal-teams'
 const WORK_STORAGE_KEY = 'colcal-work-by-date'
 const NOTES_STORAGE_KEY = 'colcal-notes-by-date'
+const MEMBERS_STORAGE_KEY = 'colcal-members-by-team'
+
+const DEFAULT_MEMBERS_BY_TEAM = {
+  General: ['Alex Morgan', 'Sam Lee', 'Jordan Kim'],
+  'Design Squad': ['Mia Patel', 'Leo Wang'],
+  'Dev Ops': ['Noah Brown', 'Priya Singh'],
+  Marketing: ['Olivia Davis', 'Ethan Reed'],
+  'Sales Team': ['Ava Wilson', 'Daniel Cruz']
+}
+
+function normalizeMemberName(value) {
+  return value.trim().replace(/\s+/g, ' ')
+}
+
+function sanitizeMemberList(list) {
+  if (!Array.isArray(list)) {
+    return []
+  }
+
+  const seen = new Set()
+  const next = []
+
+  list.forEach((item) => {
+    if (typeof item !== 'string') {
+      return
+    }
+
+    const cleaned = normalizeMemberName(item)
+    if (!cleaned) {
+      return
+    }
+
+    const dedupeKey = cleaned.toLowerCase()
+    if (seen.has(dedupeKey)) {
+      return
+    }
+
+    seen.add(dedupeKey)
+    next.push(cleaned)
+  })
+
+  return next
+}
+
+function normalizeMembersByTeam(source, teams) {
+  const normalizedSource = (source && typeof source === 'object') ? source : {}
+  const next = {
+    General: sanitizeMemberList(normalizedSource.General || DEFAULT_MEMBERS_BY_TEAM.General)
+  }
+
+  teams.forEach((team) => {
+    next[team.name] = sanitizeMemberList(normalizedSource[team.name] || DEFAULT_MEMBERS_BY_TEAM[team.name] || [])
+  })
+
+  return next
+}
 
 function getDateKey(date) {
   return [
@@ -55,6 +112,7 @@ export default function Home() {
   const [newTaskTime, setNewTaskTime] = useState('')
   const [newTaskText, setNewTaskText] = useState('')
   const [newTaskTeam, setNewTaskTeam] = useState('General')
+  const [membersByTeam, setMembersByTeam] = useState(() => normalizeMembersByTeam(DEFAULT_MEMBERS_BY_TEAM, DEFAULT_TEAMS))
 
   const currentDay = selectedDate.getDate()
   const currentMonth = selectedDate.toLocaleString('default', { month: 'long' })
@@ -110,6 +168,13 @@ export default function Home() {
     if (!teams.some((team) => team.name === activeTeam)) {
       setActiveTeam(teams[0].name)
     }
+
+    setMembersByTeam((currentMembersByTeam) => {
+      const normalized = normalizeMembersByTeam(currentMembersByTeam, teams)
+      return JSON.stringify(currentMembersByTeam) === JSON.stringify(normalized)
+        ? currentMembersByTeam
+        : normalized
+    })
   }, [teams, activeTeam])
 
   useEffect(() => {
@@ -149,8 +214,31 @@ export default function Home() {
   }, [])
 
   useEffect(() => {
+    const savedMembers = window.localStorage.getItem(MEMBERS_STORAGE_KEY)
+    if (!savedMembers) {
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(savedMembers)
+      if (parsed && typeof parsed === 'object') {
+        setMembersByTeam((currentMembersByTeam) => normalizeMembersByTeam({
+          ...currentMembersByTeam,
+          ...parsed
+        }, teams))
+      }
+    } catch {
+      window.localStorage.removeItem(MEMBERS_STORAGE_KEY)
+    }
+  }, [teams])
+
+  useEffect(() => {
     window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notesByDate))
   }, [notesByDate])
+
+  useEffect(() => {
+    window.localStorage.setItem(MEMBERS_STORAGE_KEY, JSON.stringify(membersByTeam))
+  }, [membersByTeam])
 
   useEffect(() => {
     setNotes(selectedDateNote)
@@ -242,6 +330,12 @@ export default function Home() {
               setTeams={setTeams}
               activeTeam={activeTeam}
               setActiveTeam={setActiveTeam}
+            />
+            <TeamMembersCard
+              teams={teams}
+              activeTeam={activeTeam}
+              membersByTeam={membersByTeam}
+              setMembersByTeam={setMembersByTeam}
             />
           </aside>
 
