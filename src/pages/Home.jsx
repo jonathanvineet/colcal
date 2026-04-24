@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useUser, UserButton } from '@clerk/nextjs'
 import YourTeamsCard from '../components/YourTeamsCard'
-import ExpandableDatePicker from '../components/ExpandableDatePicker'
+import Calendar from '../components/Calendar'
 
 const DEFAULT_TEAMS = [
   { name: 'Design Squad', color: '#3b82f6' },
@@ -220,159 +220,175 @@ export default function Home() {
 
   return (
     <div className="home-page">
-      {/* Header */}
       <div className="header-bar">
         <h1>Colcal</h1>
         {user && <UserButton afterSignOutUrl="/login" />}
       </div>
 
-      {/* Main Container */}
       <div className="home-container">
-        {/* Welcome Section */}
-        <div className="card" style={{ marginBottom: 32 }}>
-          <h2 style={{ margin: '0 0 12px 0' }}>Welcome, {user?.firstName || 'User'}</h2>
-          <p className="muted" style={{ margin: 0 }}>
-            Selected date: {currentMonth} {currentDay}, {currentYear}
-          </p>
-          <ExpandableDatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} />
+        <div className="card home-intro-card">
+          <div className="home-intro-content">
+            <h2 style={{ margin: '0 0 12px 0' }}>Welcome, {user?.firstName || 'User'}</h2>
+            <p className="muted" style={{ margin: 0 }}>
+              Calendar focus for {currentMonth} {toOrdinal(currentDay)}, {currentYear}
+            </p>
+          </div>
         </div>
 
-        {/* Grid Layout */}
-        <div className="dashboard-grid">
-          {/* Teams Card */}
-          <YourTeamsCard
-            teams={teams}
-            setTeams={setTeams}
-            activeTeam={activeTeam}
-            setActiveTeam={setActiveTeam}
-          />
-
-          {/* Today's Work Card */}
-          <div className="card">
-            <h3 style={{ margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {currentMonth} {toOrdinal(currentDay)}'s Work
-            </h3>
-            <p className="muted" style={{ margin: '0 0 16px 0' }}>
-              Active team: {activeTeam || 'None'} (General tasks are always shown)
-            </p>
-            <form onSubmit={handleAddTask} className="task-add-form" style={{ marginBottom: 16 }}>
-              <input
-                type="time"
-                value={newTaskTime}
-                onChange={(event) => setNewTaskTime(event.target.value)}
-                aria-label="Task time"
-                className="task-add-control task-add-time"
-              />
-              <select
-                value={newTaskTeam}
-                onChange={(event) => setNewTaskTeam(event.target.value)}
-                aria-label="Task team"
-                className="task-add-control task-add-team"
-              >
-                <option value="General">General (all teams)</option>
-                {teams.map((team) => (
-                  <option key={team.name} value={team.name}>{team.name}</option>
-                ))}
-              </select>
-              <input
-                type="text"
-                value={newTaskText}
-                onChange={(event) => setNewTaskText(event.target.value)}
-                placeholder="Add task for this date"
-                aria-label="Task description"
-                className="task-add-control task-add-input"
-              />
-              <button type="submit" className="task-add-submit">Add Task</button>
-            </form>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {visibleDateWork.length > 0 ? (
-                visibleDateWork.map((item, idx) => (
-                  <div key={idx} style={{ borderLeft: '2px solid var(--line-600)', paddingLeft: 12 }}>
-                    <div style={{ fontSize: 12, color: 'var(--fg-500)', display: 'flex', gap: 8 }}>
-                      <span>{item.time}</span>
-                      <span>•</span>
-                      <span>{item.team || 'General'}</span>
-                    </div>
-                    <div style={{ marginTop: 4 }}>{item.task}</div>
-                  </div>
-                ))
-              ) : (
-                <p className="muted" style={{ margin: 0 }}>
-                  No tasks yet for {currentMonth} {toOrdinal(currentDay)} in {activeTeam || 'this team'}.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Notes Card */}
-          <div className="card">
-            <h3 style={{ margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Notes
-            </h3>
-            <p className="muted" style={{ margin: '0 0 12px 0' }}>
-              Notes for {currentMonth} {toOrdinal(currentDay)}
-            </p>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add your notes here..."
-              style={{
-                width: '100%',
-                minHeight: 150,
-                padding: 12,
-                border: '1px solid var(--line-600)',
-                borderRadius: 8,
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                color: 'var(--fg-100)',
-                fontFamily: 'inherit',
-                resize: 'vertical',
-              }}
+        <div className="calendar-first-grid">
+          <aside className="left-rail">
+            <YourTeamsCard
+              teams={teams}
+              setTeams={setTeams}
+              activeTeam={activeTeam}
+              setActiveTeam={setActiveTeam}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, gap: 10 }}>
-              <button type="button" onClick={handleSaveNote} style={{ minWidth: 120 }}>
-                Save Note
-              </button>
-              <span className="muted" style={{ fontSize: 12 }}>
-                {noteSaveMessage}
-              </span>
+          </aside>
+
+          <section className="center-calendar-zone">
+            <div className="card calendar-feature-card">
+              <div className="calendar-feature-head">
+                <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Team Calendar
+                </h3>
+                <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+                  Selected date: {currentMonth} {toOrdinal(currentDay)}, {currentYear}
+                </p>
+              </div>
+              <Calendar
+                userId={user?.id}
+                selectedDate={selectedDate}
+                onDateChange={setSelectedDate}
+              />
+            </div>
+          </section>
+
+          <aside className="right-rail">
+            <div className="card">
+              <h3 style={{ margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                {currentMonth} {toOrdinal(currentDay)}'s Work
+              </h3>
+              <p className="muted" style={{ margin: '0 0 16px 0' }}>
+                Active team: {activeTeam || 'None'} (General tasks are always shown)
+              </p>
+              <form onSubmit={handleAddTask} className="task-add-form" style={{ marginBottom: 16 }}>
+                <input
+                  type="time"
+                  value={newTaskTime}
+                  onChange={(event) => setNewTaskTime(event.target.value)}
+                  aria-label="Task time"
+                  className="task-add-control task-add-time"
+                />
+                <select
+                  value={newTaskTeam}
+                  onChange={(event) => setNewTaskTeam(event.target.value)}
+                  aria-label="Task team"
+                  className="task-add-control task-add-team"
+                >
+                  <option value="General">General (all teams)</option>
+                  {teams.map((team) => (
+                    <option key={team.name} value={team.name}>{team.name}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={newTaskText}
+                  onChange={(event) => setNewTaskText(event.target.value)}
+                  placeholder="Add task for this date"
+                  aria-label="Task description"
+                  className="task-add-control task-add-input"
+                />
+                <button type="submit" className="task-add-submit">Add Task</button>
+              </form>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {visibleDateWork.length > 0 ? (
+                  visibleDateWork.map((item, idx) => (
+                    <div key={idx} style={{ borderLeft: '2px solid var(--line-600)', paddingLeft: 12 }}>
+                      <div style={{ fontSize: 12, color: 'var(--fg-500)', display: 'flex', gap: 8 }}>
+                        <span>{item.time}</span>
+                        <span>•</span>
+                        <span>{item.team || 'General'}</span>
+                      </div>
+                      <div style={{ marginTop: 4 }}>{item.task}</div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="muted" style={{ margin: 0 }}>
+                    No tasks yet for {currentMonth} {toOrdinal(currentDay)} in {activeTeam || 'this team'}.
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div style={{ marginTop: 16 }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--fg-300)' }}>
-                Earlier Notes
-              </h4>
-              {earlierNotes.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {earlierNotes.map(([dateKey, entry]) => (
-                    <div key={dateKey} style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '8px 10px',
-                      border: '1px solid var(--line-600)',
-                      borderRadius: 8,
-                      background: 'rgba(255, 255, 255, 0.03)'
-                    }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 12, color: 'var(--fg-300)' }}>{formatDateKey(dateKey)}</div>
-                        <div style={{ fontSize: 12, color: 'var(--fg-500)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
-                          {entry.text}
+            <div className="card">
+              <h3 style={{ margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Notes
+              </h3>
+              <p className="muted" style={{ margin: '0 0 12px 0' }}>
+                Notes for {currentMonth} {toOrdinal(currentDay)}
+              </p>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Add your notes here..."
+                style={{
+                  width: '100%',
+                  minHeight: 150,
+                  padding: 12,
+                  border: '1px solid var(--line-600)',
+                  borderRadius: 8,
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: 'var(--fg-100)',
+                  fontFamily: 'inherit',
+                  resize: 'vertical',
+                }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, gap: 10 }}>
+                <button type="button" onClick={handleSaveNote} style={{ minWidth: 120 }}>
+                  Save Note
+                </button>
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {noteSaveMessage}
+                </span>
+              </div>
+
+              <div style={{ marginTop: 16 }}>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--fg-300)' }}>
+                  Earlier Notes
+                </h4>
+                {earlierNotes.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {earlierNotes.map(([dateKey, entry]) => (
+                      <div key={dateKey} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '8px 10px',
+                        border: '1px solid var(--line-600)',
+                        borderRadius: 8,
+                        background: 'rgba(255, 255, 255, 0.03)'
+                      }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 12, color: 'var(--fg-300)' }}>{formatDateKey(dateKey)}</div>
+                          <div style={{ fontSize: 12, color: 'var(--fg-500)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
+                            {entry.text}
+                          </div>
                         </div>
+                        <button type="button" onClick={() => handleViewSavedNote(dateKey)} style={{ padding: '6px 10px', fontSize: 12 }}>
+                          View
+                        </button>
                       </div>
-                      <button type="button" onClick={() => handleViewSavedNote(dateKey)} style={{ padding: '6px 10px', fontSize: 12 }}>
-                        View
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-                  No earlier saved notes yet.
-                </p>
-              )}
+                    ))}
+                  </div>
+                ) : (
+                  <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                    No earlier saved notes yet.
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
     </div>

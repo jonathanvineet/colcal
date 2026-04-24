@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
@@ -28,15 +28,55 @@ function saveEvents(storageKey, events) {
   }
 }
 
-export default function Calendar({ userId }) {
+function isSameDay(a, b) {
+  return (
+    a instanceof Date &&
+    b instanceof Date &&
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
+export default function Calendar({ userId, selectedDate, onDateChange }) {
   const storageKey = useMemo(() => `events:${userId || 'anon'}`, [userId])
+  const calendarRef = useRef(null)
   const [events, setEvents] = useState(() => loadEvents(storageKey))
 
   useEffect(() => {
     saveEvents(storageKey, events)
   }, [storageKey, events])
 
+  useEffect(() => {
+    if (!selectedDate) {
+      return
+    }
+
+    const api = calendarRef.current?.getApi?.()
+    if (!api) {
+      return
+    }
+
+    const current = api.getDate()
+    if (!isSameDay(current, selectedDate)) {
+      api.gotoDate(selectedDate)
+    }
+  }, [selectedDate])
+
   const handleDateSelect = (info) => {
+    onDateChange?.(info.start)
+
+    const isSingleDayAllDaySelection = (
+      info.allDay &&
+      info.start &&
+      info.end &&
+      info.end.getTime() - info.start.getTime() === 24 * 60 * 60 * 1000
+    )
+
+    if (isSingleDayAllDaySelection) {
+      return
+    }
+
     const title = prompt('Event title?')
     if (title) {
       const newEvent = {
@@ -48,6 +88,10 @@ export default function Calendar({ userId }) {
       }
       setEvents((prev) => [...prev, newEvent])
     }
+  }
+
+  const handleDateClick = (info) => {
+    onDateChange?.(new Date(info.dateStr))
   }
 
   const handleEventChange = (changeInfo) => {
@@ -88,6 +132,7 @@ export default function Calendar({ userId }) {
   return (
     <div className="calendar-wrapper">
       <FullCalendar
+        ref={calendarRef}
         plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
         initialView="dayGridMonth"
         headerToolbar={{
@@ -102,11 +147,13 @@ export default function Calendar({ userId }) {
         droppable
         events={events}
         select={handleDateSelect}
+        dateClick={handleDateClick}
         eventAdd={handleEventAdd}
         eventChange={handleEventChange}
         eventDrop={handleEventChange}
         eventResize={handleEventChange}
         eventClick={handleEventClick}
+        dayCellClassNames={(arg) => (isSameDay(arg.date, selectedDate) ? ['is-selected-day'] : [])}
         height="auto"
       />
     </div>
