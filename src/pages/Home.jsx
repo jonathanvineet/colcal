@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useUser, UserButton } from '@clerk/nextjs'
+import Link from 'next/link'
 import YourTeamsCard from '../components/YourTeamsCard'
 import Calendar from '../components/Calendar'
 import TeamMembersCard from '../components/TeamMembersCard'
@@ -94,10 +95,71 @@ function fromDateKey(dateKey) {
   return new Date(`${dateKey}T00:00:00`)
 }
 
-function formatDateKey(dateKey) {
-  const date = fromDateKey(dateKey)
-  const month = date.toLocaleString('default', { month: 'long' })
-  return `${month} ${toOrdinal(date.getDate())}, ${date.getFullYear()}`
+function formatTimestamp(isoString) {
+  const parsed = new Date(isoString)
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Unknown time'
+  }
+
+  return parsed.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  })
+}
+
+function normalizeNotesByDate(source) {
+  if (!source || typeof source !== 'object') {
+    return {}
+  }
+
+  const next = {}
+
+  Object.entries(source).forEach(([dateKey, value]) => {
+    if (Array.isArray(value)) {
+      const normalizedEntries = value
+        .filter((entry) => entry && typeof entry === 'object' && typeof entry.text === 'string')
+        .map((entry, index) => {
+          const trimmedText = entry.text.trim()
+          if (!trimmedText) {
+            return null
+          }
+
+          return {
+            id: typeof entry.id === 'string' ? entry.id : `${dateKey}-${index}-${Date.now()}`,
+            text: trimmedText,
+            savedAt: typeof entry.savedAt === 'string' ? entry.savedAt : new Date().toISOString(),
+            authorName: typeof entry.authorName === 'string' && entry.authorName.trim()
+              ? entry.authorName.trim()
+              : 'Unknown User',
+            team: typeof entry.team === 'string' && entry.team.trim()
+              ? entry.team.trim()
+              : 'General'
+          }
+        })
+        .filter(Boolean)
+
+      if (normalizedEntries.length > 0) {
+        next[dateKey] = normalizedEntries
+      }
+      return
+    }
+
+    // Backward compatibility: old format was one object { text, savedAt }
+    if (value && typeof value === 'object' && typeof value.text === 'string' && value.text.trim()) {
+      next[dateKey] = [{
+        id: `${dateKey}-legacy`,
+        text: value.text.trim(),
+        savedAt: typeof value.savedAt === 'string' ? value.savedAt : new Date().toISOString(),
+        authorName: 'Unknown User',
+        team: 'General'
+      }]
+    }
+  })
+
+  return next
 }
 
 export default function Home() {
@@ -120,16 +182,17 @@ export default function Home() {
 
   const selectedDateKey = useMemo(() => getDateKey(selectedDate), [selectedDate])
   const selectedDateWork = workByDate[selectedDateKey] || []
-  const selectedDateNote = notesByDate[selectedDateKey]?.text || ''
+  const selectedDateNotes = notesByDate[selectedDateKey] || []
+  const selectedDateLatestNote = selectedDateNotes[selectedDateNotes.length - 1]?.text || ''
   const visibleDateWork = selectedDateWork.filter((task) => (
     task.team === 'General' || (activeTeam && task.team === activeTeam)
   ))
-  const earlierNotes = useMemo(() => (
-    Object.entries(notesByDate)
-      .filter(([dateKey, entry]) => dateKey !== selectedDateKey && entry?.text)
-      .sort(([a], [b]) => b.localeCompare(a))
-      .slice(0, 6)
-  ), [notesByDate, selectedDateKey])
+  const selectedDateSortedNotes = useMemo(() => (
+    selectedDateNotes
+      .slice()
+      .sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime())
+  ), [selectedDateNotes])
+
 
   useEffect(() => {
     const savedTeams = window.localStorage.getItem(TEAMS_STORAGE_KEY)
@@ -206,7 +269,7 @@ export default function Home() {
     try {
       const parsed = JSON.parse(savedNotes)
       if (parsed && typeof parsed === 'object') {
-        setNotesByDate(parsed)
+        setNotesByDate(normalizeNotesByDate(parsed))
       }
     } catch {
       window.localStorage.removeItem(NOTES_STORAGE_KEY)
@@ -241,9 +304,9 @@ export default function Home() {
   }, [membersByTeam])
 
   useEffect(() => {
-    setNotes(selectedDateNote)
+    setNotes(selectedDateLatestNote)
     setNoteSaveMessage('')
-  }, [selectedDateKey, selectedDateNote])
+  }, [selectedDateKey, selectedDateLatestNote])
 
   useEffect(() => {
     if (activeTeam) {
@@ -252,6 +315,7 @@ export default function Home() {
       setNewTaskTeam('General')
     }
   }, [activeTeam])
+
 
   function handleAddTask(event) {
     event.preventDefault()
@@ -282,28 +346,33 @@ export default function Home() {
 
   function handleSaveNote() {
     const trimmedNote = notes.trim()
+    if (!trimmedNote) {
+      setNoteSaveMessage('Type a note before saving.')
+      return
+    }
+
+    const authorName = user?.fullName || user?.firstName || user?.username || 'Unknown User'
+    const savedAt = new Date().toISOString()
+    const noteEntry = {
+      id: `${selectedDateKey}-${Date.now()}`,
+      text: trimmedNote,
+      savedAt,
+      authorName,
+      team: activeTeam || 'General'
+    }
 
     setNotesByDate((currentNotesByDate) => {
-      if (!trimmedNote) {
-        const nextNotesByDate = { ...currentNotesByDate }
-        delete nextNotesByDate[selectedDateKey]
-        return nextNotesByDate
-      }
+      const existingForDate = Array.isArray(currentNotesByDate[selectedDateKey])
+        ? currentNotesByDate[selectedDateKey]
+        : []
 
       return {
         ...currentNotesByDate,
-        [selectedDateKey]: {
-          text: trimmedNote,
-          savedAt: new Date().toISOString()
-        }
+        [selectedDateKey]: [...existingForDate, noteEntry]
       }
     })
 
-    setNoteSaveMessage(trimmedNote ? 'Saved.' : 'Empty note removed.')
-  }
-
-  function handleViewSavedNote(dateKey) {
-    setSelectedDate(fromDateKey(dateKey))
+    setNoteSaveMessage(`Saved by ${authorName} at ${formatTimestamp(savedAt)}.`)
   }
 
   return (
@@ -415,9 +484,12 @@ export default function Home() {
             </div>
 
             <div className="card">
-              <h3 style={{ margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Notes
-              </h3>
+              <div className="notes-card-head">
+                <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Notes
+                </h3>
+                <Link href="/notes" className="notes-explorer-link">Open Explorer</Link>
+              </div>
               <p className="muted" style={{ margin: '0 0 12px 0' }}>
                 Notes for {currentMonth} {toOrdinal(currentDay)}
               </p>
@@ -448,12 +520,12 @@ export default function Home() {
 
               <div style={{ marginTop: 16 }}>
                 <h4 style={{ margin: '0 0 10px 0', fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--fg-300)' }}>
-                  Earlier Notes
+                  Saved Notes For This Date
                 </h4>
-                {earlierNotes.length > 0 ? (
+                {selectedDateSortedNotes.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {earlierNotes.map(([dateKey, entry]) => (
-                      <div key={dateKey} style={{
+                    {selectedDateSortedNotes.map((entry) => (
+                      <div key={entry.id} style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -464,20 +536,19 @@ export default function Home() {
                         background: 'rgba(255, 255, 255, 0.03)'
                       }}>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 12, color: 'var(--fg-300)' }}>{formatDateKey(dateKey)}</div>
+                          <div style={{ fontSize: 12, color: 'var(--fg-300)' }}>
+                            {entry.authorName} • {entry.team} • {formatTimestamp(entry.savedAt)}
+                          </div>
                           <div style={{ fontSize: 12, color: 'var(--fg-500)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
                             {entry.text}
                           </div>
                         </div>
-                        <button type="button" onClick={() => handleViewSavedNote(dateKey)} style={{ padding: '6px 10px', fontSize: 12 }}>
-                          View
-                        </button>
                       </div>
                     ))}
                   </div>
                 ) : (
                   <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-                    No earlier saved notes yet.
+                    No saved notes for this date yet.
                   </p>
                 )}
               </div>
