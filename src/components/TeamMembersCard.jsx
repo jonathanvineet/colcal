@@ -40,7 +40,8 @@ export default function TeamMembersCard({
   teams,
   activeTeam,
   membersByTeam,
-  setMembersByTeam,
+  onAddMember,
+  onRemoveMember,
 }) {
   const [showAllMembers, setShowAllMembers] = useState(false)
   const [memberName, setMemberName] = useState('')
@@ -67,39 +68,20 @@ export default function TeamMembersCard({
     return sanitizeMembers(membersByTeam[selectedGroup])
   }, [membersByTeam, selectedGroup])
 
-  function handleAddMember(event) {
+  async function handleAddMember(event) {
     event.preventDefault()
 
     const cleaned = normalizeName(memberName)
     const targetGroup = selectedGroup
 
-    if (!cleaned) {
-      return
-    }
-
-    setMembersByTeam((current) => {
-      const currentGroupMembers = sanitizeMembers(current[targetGroup])
-      if (currentGroupMembers.some((item) => item.toLowerCase() === cleaned.toLowerCase())) {
-        return current
-      }
-
-      return {
-        ...current,
-        [targetGroup]: [...currentGroupMembers, cleaned],
-      }
-    })
+    if (!cleaned) return
 
     setMemberName('')
+    await onAddMember(targetGroup, cleaned)
   }
 
-  function handleRemoveMember(teamName, memberNameToRemove) {
-    setMembersByTeam((current) => {
-      const currentGroupMembers = sanitizeMembers(current[teamName])
-      return {
-        ...current,
-        [teamName]: currentGroupMembers.filter((item) => item.toLowerCase() !== memberNameToRemove.toLowerCase()),
-      }
-    })
+  async function handleRemoveMember(teamName, memberNameToRemove) {
+    await onRemoveMember(teamName, memberNameToRemove)
   }
 
   return (

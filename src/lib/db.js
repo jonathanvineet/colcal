@@ -1,0 +1,195 @@
+/**
+ * Client-side data access layer.
+ * All functions call Next.js API routes which use the Clerk session for auth
+ * and the Supabase service-role key server-side.
+ *
+ * Data transformation:
+ *   teams    → [{ name, color }]
+ *   members  → { General: [...], TeamName: [...] }
+ *   tasks    → { [dateKey]: [{ id, time, task, team }] }
+ *   notes    → { [dateKey]: [{ id, text, savedAt, authorName, team }] }
+ *   events   → [{ id, title, start, end, allDay }]  (FullCalendar format)
+ */
+
+async function apiFetch(path, options = {}) {
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  })
+  const json = await res.json()
+  if (!res.ok) {
+    throw new Error(json.error || `API error ${res.status}`)
+  }
+  return json
+}
+
+// ─── Teams ────────────────────────────────────────────────────────────────
+
+/**
+ * Returns [{ name, color }] ordered by position.
+ */
+export async function fetchTeams() {
+  const { data } = await apiFetch('/api/db/teams')
+  return (data || []).map((row) => ({ name: row.name, color: row.color }))
+}
+
+export async function saveTeam(team, position = 0) {
+  await apiFetch('/api/db/teams', {
+    method: 'POST',
+    body: JSON.stringify({ name: team.name, color: team.color, position }),
+  })
+}
+
+export async function deleteTeam(teamName) {
+  await apiFetch(`/api/db/teams?name=${encodeURIComponent(teamName)}`, {
+    method: 'DELETE',
+  })
+}
+
+// ─── Team Members ─────────────────────────────────────────────────────────
+
+/**
+ * Returns { [teamName]: [memberName, ...] } keyed by team name.
+ */
+export async function fetchMembers() {
+  const { data } = await apiFetch('/api/db/members')
+  const membersByTeam = {}
+  for (const row of data || []) {
+    if (!membersByTeam[row.team_name]) {
+      membersByTeam[row.team_name] = []
+    }
+    membersByTeam[row.team_name].push(row.member_name)
+  }
+  return membersByTeam
+}
+
+export async function saveMember(teamName, memberName) {
+  await apiFetch('/api/db/members', {
+    method: 'POST',
+    body: JSON.stringify({ teamName, memberName }),
+  })
+}
+
+export async function deleteMember(teamName, memberName) {
+  await apiFetch(
+    `/api/db/members?teamName=${encodeURIComponent(teamName)}&memberName=${encodeURIComponent(memberName)}`,
+    { method: 'DELETE' }
+  )
+}
+
+// ─── Tasks ────────────────────────────────────────────────────────────────
+
+/**
+ * Returns { [dateKey]: [{ id, time, task, team }] }.
+ */
+export async function fetchTasks() {
+  const { data } = await apiFetch('/api/db/tasks')
+  const tasksByDate = {}
+  for (const row of data || []) {
+    if (!tasksByDate[row.date_key]) {
+      tasksByDate[row.date_key] = []
+    }
+    tasksByDate[row.date_key].push({
+      id: row.id,
+      time: row.time,
+      task: row.task,
+      team: row.team,
+    })
+  }
+  return tasksByDate
+}
+
+/**
+ * Saves a task to the DB and returns the saved task (with DB-generated id).
+ */
+export async function saveTask(dateKey, task) {
+  const { data } = await apiFetch('/api/db/tasks', {
+    method: 'POST',
+    body: JSON.stringify({
+      dateKey,
+      time: task.time,
+      task: task.task,
+      team: task.team,
+    }),
+  })
+  return { id: data.id, time: data.time, task: data.task, team: data.team }
+}
+
+export async function deleteTask(taskId) {
+  await apiFetch(`/api/db/tasks?id=${encodeURIComponent(taskId)}`, {
+    method: 'DELETE',
+  })
+}
+
+// ─── Notes ────────────────────────────────────────────────────────────────
+
+/**
+ * Returns { [dateKey]: [{ id, text, savedAt, authorName, team }] }.
+ */
+export async function fetchNotes() {
+  const { data } = await apiFetch('/api/db/notes')
+  const notesByDate = {}
+  for (const row of data || []) {
+    if (!notesByDate[row.date_key]) {
+      notesByDate[row.date_key] = []
+    }
+    notesByDate[row.date_key].push({
+      id: row.id,
+      text: row.text,
+      savedAt: row.saved_at,
+      authorName: row.author_name,
+      team: row.team,
+    })
+  }
+  return notesByDate
+}
+
+export async function saveNote(dateKey, note) {
+  await apiFetch('/api/db/notes', {
+    method: 'POST',
+    body: JSON.stringify({
+      id: note.id,
+      dateKey,
+      text: note.text,
+      authorName: note.authorName,
+      team: note.team,
+      savedAt: note.savedAt,
+    }),
+  })
+}
+
+export async function deleteNote(noteId) {
+  await apiFetch(`/api/db/notes?id=${encodeURIComponent(noteId)}`, {
+    method: 'DELETE',
+  })
+}
+
+// ─── Calendar Events ──────────────────────────────────────────────────────
+
+/**
+ * Returns [{ id, title, start, end, allDay }] — FullCalendar format.
+ */
+export async function fetchCalendarEvents() {
+  const { data } = await apiFetch('/api/db/events')
+  return data || []
+}
+
+export async function saveCalendarEvent(event) {
+  await apiFetch('/api/db/events', {
+    method: 'POST',
+    body: JSON.stringify(event),
+  })
+}
+
+export async function updateCalendarEvent(event) {
+  await apiFetch('/api/db/events', {
+    method: 'PUT',
+    body: JSON.stringify(event),
+  })
+}
+
+export async function deleteCalendarEvent(eventId) {
+  await apiFetch(`/api/db/events?id=${encodeURIComponent(eventId)}`, {
+    method: 'DELETE',
+  })
+}

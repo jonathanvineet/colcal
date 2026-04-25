@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useUser, UserButton } from '@clerk/nextjs'
 import Link from 'next/link'
 import YourTeamsCard from '../components/YourTeamsCard'
 import Calendar from '../components/Calendar'
 import TeamMembersCard from '../components/TeamMembersCard'
+import * as db from '../lib/db'
 
 const DEFAULT_TEAMS = [
   { name: 'Design Squad', color: '#3b82f6' },
@@ -14,64 +15,12 @@ const DEFAULT_TEAMS = [
   { name: 'Sales Team', color: '#f97316' }
 ]
 
-const TEAMS_STORAGE_KEY = 'colcal-teams'
-const WORK_STORAGE_KEY = 'colcal-work-by-date'
-const NOTES_STORAGE_KEY = 'colcal-notes-by-date'
-const MEMBERS_STORAGE_KEY = 'colcal-members-by-team'
-
 const DEFAULT_MEMBERS_BY_TEAM = {
   General: ['Alex Morgan', 'Sam Lee', 'Jordan Kim'],
   'Design Squad': ['Mia Patel', 'Leo Wang'],
   'Dev Ops': ['Noah Brown', 'Priya Singh'],
   Marketing: ['Olivia Davis', 'Ethan Reed'],
   'Sales Team': ['Ava Wilson', 'Daniel Cruz']
-}
-
-function normalizeMemberName(value) {
-  return value.trim().replace(/\s+/g, ' ')
-}
-
-function sanitizeMemberList(list) {
-  if (!Array.isArray(list)) {
-    return []
-  }
-
-  const seen = new Set()
-  const next = []
-
-  list.forEach((item) => {
-    if (typeof item !== 'string') {
-      return
-    }
-
-    const cleaned = normalizeMemberName(item)
-    if (!cleaned) {
-      return
-    }
-
-    const dedupeKey = cleaned.toLowerCase()
-    if (seen.has(dedupeKey)) {
-      return
-    }
-
-    seen.add(dedupeKey)
-    next.push(cleaned)
-  })
-
-  return next
-}
-
-function normalizeMembersByTeam(source, teams) {
-  const normalizedSource = (source && typeof source === 'object') ? source : {}
-  const next = {
-    General: sanitizeMemberList(normalizedSource.General || DEFAULT_MEMBERS_BY_TEAM.General)
-  }
-
-  teams.forEach((team) => {
-    next[team.name] = sanitizeMemberList(normalizedSource[team.name] || DEFAULT_MEMBERS_BY_TEAM[team.name] || [])
-  })
-
-  return next
 }
 
 function getDateKey(date) {
@@ -91,10 +40,6 @@ function toOrdinal(day) {
   return `${day}th`
 }
 
-function fromDateKey(dateKey) {
-  return new Date(`${dateKey}T00:00:00`)
-}
-
 function formatTimestamp(isoString) {
   const parsed = new Date(isoString)
   if (Number.isNaN(parsed.getTime())) {
@@ -110,72 +55,26 @@ function formatTimestamp(isoString) {
   })
 }
 
-function normalizeNotesByDate(source) {
-  if (!source || typeof source !== 'object') {
-    return {}
-  }
-
-  const next = {}
-
-  Object.entries(source).forEach(([dateKey, value]) => {
-    if (Array.isArray(value)) {
-      const normalizedEntries = value
-        .filter((entry) => entry && typeof entry === 'object' && typeof entry.text === 'string')
-        .map((entry, index) => {
-          const trimmedText = entry.text.trim()
-          if (!trimmedText) {
-            return null
-          }
-
-          return {
-            id: typeof entry.id === 'string' ? entry.id : `${dateKey}-${index}-${Date.now()}`,
-            text: trimmedText,
-            savedAt: typeof entry.savedAt === 'string' ? entry.savedAt : new Date().toISOString(),
-            authorName: typeof entry.authorName === 'string' && entry.authorName.trim()
-              ? entry.authorName.trim()
-              : 'Unknown User',
-            team: typeof entry.team === 'string' && entry.team.trim()
-              ? entry.team.trim()
-              : 'General'
-          }
-        })
-        .filter(Boolean)
-
-      if (normalizedEntries.length > 0) {
-        next[dateKey] = normalizedEntries
-      }
-      return
-    }
-
-    // Backward compatibility: old format was one object { text, savedAt }
-    if (value && typeof value === 'object' && typeof value.text === 'string' && value.text.trim()) {
-      next[dateKey] = [{
-        id: `${dateKey}-legacy`,
-        text: value.text.trim(),
-        savedAt: typeof value.savedAt === 'string' ? value.savedAt : new Date().toISOString(),
-        authorName: 'Unknown User',
-        team: 'General'
-      }]
-    }
-  })
-
-  return next
-}
-
 export default function Home() {
   const { user } = useUser()
+
+  // ── Data state ────────────────────────────────────────────────────────
+  const [dataLoading, setDataLoading] = useState(true)
+  const [dataError, setDataError] = useState(null)
+
   const [notes, setNotes] = useState('')
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [notesByDate, setNotesByDate] = useState({})
   const [noteSaveMessage, setNoteSaveMessage] = useState('')
-  const [teams, setTeams] = useState(DEFAULT_TEAMS)
-  const [activeTeam, setActiveTeam] = useState(DEFAULT_TEAMS[0]?.name || null)
+  const [teams, setTeams] = useState([])
+  const [activeTeam, setActiveTeam] = useState(null)
   const [workByDate, setWorkByDate] = useState({})
   const [newTaskTime, setNewTaskTime] = useState('')
   const [newTaskText, setNewTaskText] = useState('')
   const [newTaskTeam, setNewTaskTeam] = useState('General')
-  const [membersByTeam, setMembersByTeam] = useState(() => normalizeMembersByTeam(DEFAULT_MEMBERS_BY_TEAM, DEFAULT_TEAMS))
+  const [membersByTeam, setMembersByTeam] = useState({ General: [] })
 
+  // ── Derived values ────────────────────────────────────────────────────
   const currentDay = selectedDate.getDate()
   const currentMonth = selectedDate.toLocaleString('default', { month: 'long' })
   const currentYear = selectedDate.getFullYear()
@@ -193,121 +92,67 @@ export default function Home() {
       .sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime())
   ), [selectedDateNotes])
 
-
+  // ── Load all data on mount (once user is available) ───────────────────
   useEffect(() => {
-    const savedTeams = window.localStorage.getItem(TEAMS_STORAGE_KEY)
-    if (!savedTeams) {
-      return
-    }
+    if (!user?.id) return
 
-    try {
-      const parsedTeams = JSON.parse(savedTeams)
-      if (Array.isArray(parsedTeams)) {
-        const normalizedTeams = parsedTeams.filter((team) => (
-          team &&
-          typeof team.name === 'string' &&
-          typeof team.color === 'string'
-        ))
-        if (normalizedTeams.length > 0) {
-          setTeams(normalizedTeams)
-          setActiveTeam((currentActiveTeam) => (
-            normalizedTeams.some((team) => team.name === currentActiveTeam)
-              ? currentActiveTeam
-              : normalizedTeams[0].name
-          ))
+    let cancelled = false
+
+    async function loadAll() {
+      setDataLoading(true)
+      setDataError(null)
+
+      try {
+        const [fetchedTeams, fetchedMembers, fetchedTasks, fetchedNotes] = await Promise.all([
+          db.fetchTeams(),
+          db.fetchMembers(),
+          db.fetchTasks(),
+          db.fetchNotes(),
+        ])
+
+        if (cancelled) return
+
+        // Seed with defaults if DB is empty (first-ever login)
+        if (fetchedTeams.length === 0) {
+          setTeams(DEFAULT_TEAMS)
+          setActiveTeam(DEFAULT_TEAMS[0]?.name || null)
+          // Persist defaults to DB in background
+          DEFAULT_TEAMS.forEach((team, idx) => db.saveTeam(team, idx).catch(() => {}))
+        } else {
+          setTeams(fetchedTeams)
+          setActiveTeam(fetchedTeams[0]?.name || null)
         }
+
+        // Seed members if empty
+        const hasFetchedMembers = Object.keys(fetchedMembers).length > 0
+        if (!hasFetchedMembers) {
+          setMembersByTeam(DEFAULT_MEMBERS_BY_TEAM)
+          // Persist defaults to DB in background
+          Object.entries(DEFAULT_MEMBERS_BY_TEAM).forEach(([teamName, names]) => {
+            names.forEach((name) => db.saveMember(teamName, name).catch(() => {}))
+          })
+        } else {
+          // Ensure General key exists
+          setMembersByTeam({ General: [], ...fetchedMembers })
+        }
+
+        setWorkByDate(fetchedTasks)
+        setNotesByDate(fetchedNotes)
+      } catch (err) {
+        if (!cancelled) {
+          setDataError('Failed to load your data. Please refresh the page.')
+          console.error('DB load error:', err)
+        }
+      } finally {
+        if (!cancelled) setDataLoading(false)
       }
-    } catch {
-      window.localStorage.removeItem(TEAMS_STORAGE_KEY)
-    }
-  }, [])
-
-  useEffect(() => {
-    window.localStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(teams))
-    if (teams.length === 0) {
-      setActiveTeam(null)
-      return
-    }
-    if (!teams.some((team) => team.name === activeTeam)) {
-      setActiveTeam(teams[0].name)
     }
 
-    setMembersByTeam((currentMembersByTeam) => {
-      const normalized = normalizeMembersByTeam(currentMembersByTeam, teams)
-      return JSON.stringify(currentMembersByTeam) === JSON.stringify(normalized)
-        ? currentMembersByTeam
-        : normalized
-    })
-  }, [teams, activeTeam])
+    loadAll()
+    return () => { cancelled = true }
+  }, [user?.id])
 
-  useEffect(() => {
-    const savedWork = window.localStorage.getItem(WORK_STORAGE_KEY)
-    if (!savedWork) {
-      return
-    }
-
-    try {
-      const parsed = JSON.parse(savedWork)
-      if (parsed && typeof parsed === 'object') {
-        setWorkByDate(parsed)
-      }
-    } catch {
-      window.localStorage.removeItem(WORK_STORAGE_KEY)
-    }
-  }, [])
-
-  useEffect(() => {
-    window.localStorage.setItem(WORK_STORAGE_KEY, JSON.stringify(workByDate))
-  }, [workByDate])
-
-  useEffect(() => {
-    const savedNotes = window.localStorage.getItem(NOTES_STORAGE_KEY)
-    if (!savedNotes) {
-      return
-    }
-
-    try {
-      const parsed = JSON.parse(savedNotes)
-      if (parsed && typeof parsed === 'object') {
-        setNotesByDate(normalizeNotesByDate(parsed))
-      }
-    } catch {
-      window.localStorage.removeItem(NOTES_STORAGE_KEY)
-    }
-  }, [])
-
-  useEffect(() => {
-    const savedMembers = window.localStorage.getItem(MEMBERS_STORAGE_KEY)
-    if (!savedMembers) {
-      return
-    }
-
-    try {
-      const parsed = JSON.parse(savedMembers)
-      if (parsed && typeof parsed === 'object') {
-        setMembersByTeam((currentMembersByTeam) => normalizeMembersByTeam({
-          ...currentMembersByTeam,
-          ...parsed
-        }, teams))
-      }
-    } catch {
-      window.localStorage.removeItem(MEMBERS_STORAGE_KEY)
-    }
-  }, [teams])
-
-  useEffect(() => {
-    window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notesByDate))
-  }, [notesByDate])
-
-  useEffect(() => {
-    window.localStorage.setItem(MEMBERS_STORAGE_KEY, JSON.stringify(membersByTeam))
-  }, [membersByTeam])
-
-  useEffect(() => {
-    setNotes(selectedDateLatestNote)
-    setNoteSaveMessage('')
-  }, [selectedDateKey, selectedDateLatestNote])
-
+  // ── Sync active team & task team input ────────────────────────────────
   useEffect(() => {
     if (activeTeam) {
       setNewTaskTeam(activeTeam)
@@ -316,35 +161,94 @@ export default function Home() {
     }
   }, [activeTeam])
 
+  // ── Sync notes textarea when selected date changes ────────────────────
+  useEffect(() => {
+    setNotes(selectedDateLatestNote)
+    setNoteSaveMessage('')
+  }, [selectedDateKey, selectedDateLatestNote])
 
-  function handleAddTask(event) {
-    event.preventDefault()
-    const trimmedTask = newTaskText.trim()
-    if (!trimmedTask) {
-      return
-    }
+  // ── Team handlers ─────────────────────────────────────────────────────
+  const handleAddTeam = useCallback(async (teamName, teamColor) => {
+    const newTeam = { name: teamName, color: teamColor }
+    setTeams((prev) => {
+      const next = [...prev, newTeam]
+      // Persist with position = index
+      db.saveTeam(newTeam, next.length - 1).catch(console.error)
+      return next
+    })
+    setActiveTeam((current) => current || teamName)
+  }, [])
 
-    setWorkByDate((currentWorkByDate) => {
-      const tasksForSelectedDate = currentWorkByDate[selectedDateKey] || []
+  const handleRemoveTeam = useCallback(async (teamName) => {
+    setTeams((prev) => {
+      const next = prev.filter((t) => t.name !== teamName)
+      setActiveTeam((current) =>
+        current === teamName ? (next[0]?.name || null) : current
+      )
+      // Remove members for this team from local state
+      setMembersByTeam((m) => {
+        const copy = { ...m }
+        delete copy[teamName]
+        return copy
+      })
+      db.deleteTeam(teamName).catch(console.error)
+      return next
+    })
+  }, [])
+
+  // ── Member handlers ───────────────────────────────────────────────────
+  const handleAddMember = useCallback(async (teamName, memberName) => {
+    setMembersByTeam((prev) => {
+      const existing = prev[teamName] || []
+      if (existing.some((n) => n.toLowerCase() === memberName.toLowerCase())) {
+        return prev
+      }
+      db.saveMember(teamName, memberName).catch(console.error)
+      return { ...prev, [teamName]: [...existing, memberName] }
+    })
+  }, [])
+
+  const handleRemoveMember = useCallback(async (teamName, memberName) => {
+    setMembersByTeam((prev) => {
+      const existing = prev[teamName] || []
+      db.deleteMember(teamName, memberName).catch(console.error)
       return {
-        ...currentWorkByDate,
-        [selectedDateKey]: [
-          ...tasksForSelectedDate,
-          {
-            time: newTaskTime || 'Anytime',
-            task: trimmedTask,
-            team: newTaskTeam
-          }
-        ]
+        ...prev,
+        [teamName]: existing.filter((n) => n.toLowerCase() !== memberName.toLowerCase())
       }
     })
+  }, [])
+
+  // ── Task handlers ─────────────────────────────────────────────────────
+  async function handleAddTask(event) {
+    event.preventDefault()
+    const trimmedTask = newTaskText.trim()
+    if (!trimmedTask) return
+
+    const taskPayload = {
+      time: newTaskTime || 'Anytime',
+      task: trimmedTask,
+      team: newTaskTeam,
+    }
 
     setNewTaskText('')
     setNewTaskTime('')
     setNewTaskTeam(activeTeam || 'General')
+
+    try {
+      // Save to DB first so we get the server-generated id
+      const saved = await db.saveTask(selectedDateKey, taskPayload)
+      setWorkByDate((prev) => ({
+        ...prev,
+        [selectedDateKey]: [...(prev[selectedDateKey] || []), saved]
+      }))
+    } catch (err) {
+      console.error('Failed to save task:', err)
+    }
   }
 
-  function handleSaveNote() {
+  // ── Note handlers ─────────────────────────────────────────────────────
+  async function handleSaveNote() {
     const trimmedNote = notes.trim()
     if (!trimmedNote) {
       setNoteSaveMessage('Type a note before saving.')
@@ -361,18 +265,56 @@ export default function Home() {
       team: activeTeam || 'General'
     }
 
-    setNotesByDate((currentNotesByDate) => {
-      const existingForDate = Array.isArray(currentNotesByDate[selectedDateKey])
-        ? currentNotesByDate[selectedDateKey]
-        : []
-
-      return {
-        ...currentNotesByDate,
-        [selectedDateKey]: [...existingForDate, noteEntry]
-      }
+    // Optimistically update UI
+    setNotesByDate((prev) => {
+      const existing = Array.isArray(prev[selectedDateKey]) ? prev[selectedDateKey] : []
+      return { ...prev, [selectedDateKey]: [...existing, noteEntry] }
     })
-
     setNoteSaveMessage(`Saved by ${authorName} at ${formatTimestamp(savedAt)}.`)
+
+    try {
+      await db.saveNote(selectedDateKey, noteEntry)
+    } catch (err) {
+      console.error('Failed to save note:', err)
+      setNoteSaveMessage('Error saving note. Please try again.')
+    }
+  }
+
+  // ── Loading / error states ────────────────────────────────────────────
+  if (dataLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
+        color: 'white',
+        flexDirection: 'column',
+        gap: 12
+      }}>
+        <div style={{ fontSize: 18, fontWeight: 600 }}>Loading your workspace…</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Fetching data from the database</div>
+      </div>
+    )
+  }
+
+  if (dataError) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
+        color: 'white',
+        flexDirection: 'column',
+        gap: 12
+      }}>
+        <div style={{ fontSize: 18, fontWeight: 600, color: '#f97316' }}>Something went wrong</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{dataError}</div>
+      </div>
+    )
   }
 
   return (
@@ -396,15 +338,17 @@ export default function Home() {
           <aside className="left-rail">
             <YourTeamsCard
               teams={teams}
-              setTeams={setTeams}
               activeTeam={activeTeam}
               setActiveTeam={setActiveTeam}
+              onAddTeam={handleAddTeam}
+              onRemoveTeam={handleRemoveTeam}
             />
             <TeamMembersCard
               teams={teams}
               activeTeam={activeTeam}
               membersByTeam={membersByTeam}
-              setMembersByTeam={setMembersByTeam}
+              onAddMember={handleAddMember}
+              onRemoveMember={handleRemoveMember}
             />
           </aside>
 
@@ -465,8 +409,8 @@ export default function Home() {
               </form>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {visibleDateWork.length > 0 ? (
-                  visibleDateWork.map((item, idx) => (
-                    <div key={idx} style={{ borderLeft: '2px solid var(--line-600)', paddingLeft: 12 }}>
+                  visibleDateWork.map((item) => (
+                    <div key={item.id || item.task} style={{ borderLeft: '2px solid var(--line-600)', paddingLeft: 12 }}>
                       <div style={{ fontSize: 12, color: 'var(--fg-500)', display: 'flex', gap: 8 }}>
                         <span>{item.time}</span>
                         <span>•</span>

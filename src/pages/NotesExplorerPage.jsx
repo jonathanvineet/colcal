@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useUser, UserButton } from '@clerk/nextjs'
 import NotesExplorerCard from '../components/NotesExplorerCard'
+import { fetchNotes } from '../lib/db'
 
-const NOTES_STORAGE_KEY = 'colcal-notes-by-date'
 const NOTES_PAGE_SIZE = 15
 
 function toOrdinal(day) {
@@ -42,62 +42,10 @@ function formatTimestamp(isoString) {
   })
 }
 
-function normalizeNotesByDate(source) {
-  if (!source || typeof source !== 'object') {
-    return {}
-  }
-
-  const next = {}
-
-  Object.entries(source).forEach(([dateKey, value]) => {
-    if (Array.isArray(value)) {
-      const normalizedEntries = value
-        .filter((entry) => entry && typeof entry === 'object' && typeof entry.text === 'string')
-        .map((entry, index) => {
-          const trimmedText = entry.text.trim()
-          if (!trimmedText) {
-            return null
-          }
-
-          return {
-            id: typeof entry.id === 'string' ? entry.id : `${dateKey}-${index}-${Date.now()}`,
-            text: trimmedText,
-            savedAt: typeof entry.savedAt === 'string' ? entry.savedAt : new Date().toISOString(),
-            authorName: typeof entry.authorName === 'string' && entry.authorName.trim()
-              ? entry.authorName.trim()
-              : 'Unknown User',
-            team: typeof entry.team === 'string' && entry.team.trim()
-              ? entry.team.trim()
-              : 'General',
-            dateKey
-          }
-        })
-        .filter(Boolean)
-
-      if (normalizedEntries.length > 0) {
-        next[dateKey] = normalizedEntries
-      }
-      return
-    }
-
-    if (value && typeof value === 'object' && typeof value.text === 'string' && value.text.trim()) {
-      next[dateKey] = [{
-        id: `${dateKey}-legacy`,
-        text: value.text.trim(),
-        savedAt: typeof value.savedAt === 'string' ? value.savedAt : new Date().toISOString(),
-        authorName: 'Unknown User',
-        team: 'General',
-        dateKey
-      }]
-    }
-  })
-
-  return next
-}
-
 export default function NotesExplorerPage() {
   const { user } = useUser()
   const [notesByDate, setNotesByDate] = useState({})
+  const [notesLoading, setNotesLoading] = useState(true)
   const [notesQuery, setNotesQuery] = useState('')
   const [debouncedNotesQuery, setDebouncedNotesQuery] = useState('')
   const [notesDateFrom, setNotesDateFrom] = useState('')
@@ -107,6 +55,28 @@ export default function NotesExplorerPage() {
   const [notesSortBy, setNotesSortBy] = useState('newest')
   const [notesPage, setNotesPage] = useState(1)
   const [previewEntry, setPreviewEntry] = useState(null)
+
+  // Load notes from DB when user is available
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+
+    setNotesLoading(true)
+    fetchNotes()
+      .then((data) => {
+        if (!cancelled) {
+          setNotesByDate(data)
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load notes:', err)
+      })
+      .finally(() => {
+        if (!cancelled) setNotesLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [user?.id])
 
   const allNotes = useMemo(() => (
     Object.entries(notesByDate)
@@ -131,23 +101,13 @@ export default function NotesExplorerPage() {
 
     const base = allNotes.filter((entry) => {
       const savedAtMs = new Date(entry.savedAt).getTime()
-      if (startMs !== null && Number.isFinite(savedAtMs) && savedAtMs < startMs) {
-        return false
-      }
-      if (endMs !== null && Number.isFinite(savedAtMs) && savedAtMs > endMs) {
-        return false
-      }
-      if (selectedNoteTeams.length > 0 && !selectedNoteTeams.includes(entry.team)) {
-        return false
-      }
-      if (selectedNoteAuthors.length > 0 && !selectedNoteAuthors.includes(entry.authorName)) {
-        return false
-      }
+      if (startMs !== null && Number.isFinite(savedAtMs) && savedAtMs < startMs) return false
+      if (endMs !== null && Number.isFinite(savedAtMs) && savedAtMs > endMs) return false
+      if (selectedNoteTeams.length > 0 && !selectedNoteTeams.includes(entry.team)) return false
+      if (selectedNoteAuthors.length > 0 && !selectedNoteAuthors.includes(entry.authorName)) return false
       if (query) {
         const searchable = `${entry.text} ${entry.team} ${entry.authorName} ${entry.dateKey}`.toLowerCase()
-        if (!searchable.includes(query)) {
-          return false
-        }
+        if (!searchable.includes(query)) return false
       }
       return true
     })
@@ -157,9 +117,7 @@ export default function NotesExplorerPage() {
       const bMs = new Date(b.savedAt).getTime()
       const safeAMs = Number.isFinite(aMs) ? aMs : 0
       const safeBMs = Number.isFinite(bMs) ? bMs : 0
-      if (notesSortBy === 'oldest') {
-        return safeAMs - safeBMs
-      }
+      if (notesSortBy === 'oldest') return safeAMs - safeBMs
       return safeBMs - safeAMs
     })
   }, [allNotes, debouncedNotesQuery, notesDateFrom, notesDateTo, selectedNoteTeams, selectedNoteAuthors, notesSortBy])
@@ -172,30 +130,12 @@ export default function NotesExplorerPage() {
     return filteredNotes.slice(start, start + NOTES_PAGE_SIZE)
   }, [filteredNotes, notesPage])
 
-  useEffect(() => {
-    const savedNotes = window.localStorage.getItem(NOTES_STORAGE_KEY)
-    if (!savedNotes) {
-      return
-    }
-
-    try {
-      const parsed = JSON.parse(savedNotes)
-      if (parsed && typeof parsed === 'object') {
-        setNotesByDate(normalizeNotesByDate(parsed))
-      }
-    } catch {
-      window.localStorage.removeItem(NOTES_STORAGE_KEY)
-    }
-  }, [])
-
+  // Debounce search query
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       setDebouncedNotesQuery(notesQuery)
     }, 200)
-
-    return () => {
-      window.clearTimeout(timeoutId)
-    }
+    return () => { window.clearTimeout(timeoutId) }
   }, [notesQuery])
 
   useEffect(() => {
@@ -237,6 +177,21 @@ export default function NotesExplorerPage() {
 
   function handleOpenNote(dateKey, text) {
     setPreviewEntry({ dateKey, text })
+  }
+
+  if (notesLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
+        color: 'white',
+      }}>
+        Loading notes…
+      </div>
+    )
   }
 
   return (

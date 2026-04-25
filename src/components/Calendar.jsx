@@ -6,27 +6,15 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import listPlugin from '@fullcalendar/list'
+import {
+  fetchCalendarEvents,
+  saveCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+} from '../lib/db'
 
 // Note: FullCalendar v6 injects its styles at runtime into a <style data-fullcalendar> tag.
 // Do not import CSS files here; the packages no longer ship main.css files.
-
-function loadEvents(storageKey) {
-  try {
-    const raw = localStorage.getItem(storageKey)
-    return raw ? JSON.parse(raw) : []
-  } catch {
-    // ignore parse errors, return empty events
-    return []
-  }
-}
-
-function saveEvents(storageKey, events) {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(events))
-  } catch {
-    // ignore save errors
-  }
-}
 
 function isSameDay(a, b) {
   return (
@@ -39,23 +27,36 @@ function isSameDay(a, b) {
 }
 
 export default function Calendar({ userId, selectedDate, onDateChange }) {
-  const storageKey = useMemo(() => `events:${userId || 'anon'}`, [userId])
   const calendarRef = useRef(null)
-  const [events, setEvents] = useState(() => loadEvents(storageKey))
+  const [events, setEvents] = useState([])
+  const [eventsLoaded, setEventsLoaded] = useState(false)
 
+  // Load events from DB once userId is available
   useEffect(() => {
-    saveEvents(storageKey, events)
-  }, [storageKey, events])
+    if (!userId) return
+    let cancelled = false
 
+    fetchCalendarEvents()
+      .then((data) => {
+        if (!cancelled) {
+          setEvents(data)
+          setEventsLoaded(true)
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load calendar events:', err)
+        if (!cancelled) setEventsLoaded(true)
+      })
+
+    return () => { cancelled = true }
+  }, [userId])
+
+  // Sync calendar view when selectedDate changes externally
   useEffect(() => {
-    if (!selectedDate) {
-      return
-    }
+    if (!selectedDate) return
 
     const api = calendarRef.current?.getApi?.()
-    if (!api) {
-      return
-    }
+    if (!api) return
 
     const current = api.getDate()
     if (!isSameDay(current, selectedDate)) {
@@ -73,9 +74,7 @@ export default function Calendar({ userId, selectedDate, onDateChange }) {
       info.end.getTime() - info.start.getTime() === 24 * 60 * 60 * 1000
     )
 
-    if (isSingleDayAllDaySelection) {
-      return
-    }
+    if (isSingleDayAllDaySelection) return
 
     const title = prompt('Event title?')
     if (title) {
@@ -87,6 +86,9 @@ export default function Calendar({ userId, selectedDate, onDateChange }) {
         allDay: info.allDay,
       }
       setEvents((prev) => [...prev, newEvent])
+      saveCalendarEvent(newEvent).catch((err) =>
+        console.error('Failed to save calendar event:', err)
+      )
     }
   }
 
@@ -96,19 +98,23 @@ export default function Calendar({ userId, selectedDate, onDateChange }) {
 
   const handleEventChange = (changeInfo) => {
     const { event } = changeInfo
+    const updated = {
+      id: event.id,
+      start: event.start?.toISOString?.() || event.startStr,
+      end: event.end?.toISOString?.() || event.endStr,
+      allDay: event.allDay,
+    }
     setEvents((prev) =>
-      prev.map((e) => (e.id === event.id ? {
-        ...e,
-        start: event.start?.toISOString?.() || event.startStr,
-        end: event.end?.toISOString?.() || event.endStr,
-        allDay: event.allDay,
-      } : e))
+      prev.map((e) => (e.id === event.id ? { ...e, ...updated } : e))
+    )
+    updateCalendarEvent(updated).catch((err) =>
+      console.error('Failed to update calendar event:', err)
     )
   }
 
   const handleEventAdd = (addInfo) => {
     const { event } = addInfo
-    // If FullCalendar creates an internal id, ensure we keep ours
+    // FullCalendar may fire eventAdd for events already in state — only persist if new
     if (!events.find((e) => e.id === event.id)) {
       const newEvent = {
         id: event.id,
@@ -118,6 +124,9 @@ export default function Calendar({ userId, selectedDate, onDateChange }) {
         allDay: event.allDay,
       }
       setEvents((prev) => [...prev, newEvent])
+      saveCalendarEvent(newEvent).catch((err) =>
+        console.error('Failed to save calendar event:', err)
+      )
     }
   }
 
@@ -126,7 +135,18 @@ export default function Calendar({ userId, selectedDate, onDateChange }) {
       const id = clickInfo.event.id
       setEvents((prev) => prev.filter((e) => e.id !== id))
       clickInfo.event.remove()
+      deleteCalendarEvent(id).catch((err) =>
+        console.error('Failed to delete calendar event:', err)
+      )
     }
+  }
+
+  if (!eventsLoaded) {
+    return (
+      <div className="calendar-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300, color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>
+        Loading calendar…
+      </div>
+    )
   }
 
   return (

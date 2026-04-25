@@ -2,48 +2,32 @@
 
 import { useState } from 'react'
 
-export default function YourTeamsCard({ teams, setTeams, activeTeam, setActiveTeam }) {
+export default function YourTeamsCard({
+  teams,
+  activeTeam,
+  setActiveTeam,
+  onAddTeam,
+  onRemoveTeam,
+}) {
   const [teamName, setTeamName] = useState('')
   const [teamColor, setTeamColor] = useState('#3b82f6')
 
-  function handleAddTeam(event) {
+  async function handleAddTeam(event) {
     event.preventDefault()
     const trimmedName = teamName.trim()
-    if (!trimmedName) {
-      return
-    }
+    if (!trimmedName) return
 
     const alreadyExists = teams.some(
       (team) => team.name.toLowerCase() === trimmedName.toLowerCase()
     )
-    if (alreadyExists) {
-      return
-    }
+    if (alreadyExists) return
 
-    setTeams((currentTeams) => {
-      const nextTeams = [
-        ...currentTeams,
-        { name: trimmedName, color: teamColor }
-      ]
-      if (!activeTeam) {
-        setActiveTeam(trimmedName)
-      }
-      return nextTeams
-    })
     setTeamName('')
+    await onAddTeam(trimmedName, teamColor)
   }
 
-  function handleRemoveTeam(teamIndex) {
-    setTeams((currentTeams) => {
-      const teamToRemove = currentTeams[teamIndex]
-      const remainingTeams = currentTeams.filter((_, idx) => idx !== teamIndex)
-
-      if (teamToRemove?.name === activeTeam) {
-        setActiveTeam(remainingTeams[0]?.name || null)
-      }
-
-      return remainingTeams
-    })
+  async function handleRemoveTeam(teamName) {
+    await onRemoveTeam(teamName)
   }
 
   return (
@@ -133,7 +117,7 @@ export default function YourTeamsCard({ teams, setTeams, activeTeam, setActiveTe
               type="button"
               onClick={(event) => {
                 event.stopPropagation()
-                handleRemoveTeam(idx)
+                handleRemoveTeam(team.name)
               }}
               aria-label={`Remove ${team.name}`}
               style={{
