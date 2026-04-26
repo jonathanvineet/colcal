@@ -9,7 +9,7 @@ export async function GET() {
   const supabase = createServerSupabaseClient()
   const { data, error } = await supabase
     .from('tasks')
-    .select('id, date_key, time, task, team')
+    .select('id, date_key, time, task, team, completed')
     .eq('user_id', userId)
     .order('created_at', { ascending: true })
 
@@ -21,7 +21,7 @@ export async function POST(request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { dateKey, time, task, team } = await request.json()
+  const { dateKey, time, task, team, completed } = await request.json()
   if (!dateKey || !task) {
     return NextResponse.json({ error: 'dateKey and task are required' }, { status: 400 })
   }
@@ -35,8 +35,31 @@ export async function POST(request) {
       time: time || 'Anytime',
       task,
       team: team || 'General',
+      completed: !!completed,
     })
-    .select('id, date_key, time, task, team')
+    .select('id, date_key, time, task, team, completed')
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ data })
+}
+
+export async function PUT(request) {
+  const { userId } = await auth()
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id, completed } = await request.json()
+  if (!id) {
+    return NextResponse.json({ error: 'id is required' }, { status: 400 })
+  }
+
+  const supabase = createServerSupabaseClient()
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ completed: !!completed })
+    .eq('user_id', userId)
+    .eq('id', id)
+    .select('id, date_key, time, task, team, completed')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

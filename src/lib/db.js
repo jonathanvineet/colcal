@@ -94,6 +94,7 @@ export async function fetchTasks() {
       time: row.time,
       task: row.task,
       team: row.team,
+      completed: row.completed || false,
     })
   }
   return tasksByDate
@@ -110,9 +111,21 @@ export async function saveTask(dateKey, task) {
       time: task.time,
       task: task.task,
       team: task.team,
+      completed: task.completed || false,
     }),
   })
-  return { id: data.id, time: data.time, task: data.task, team: data.team }
+  return { id: data.id, time: data.time, task: data.task, team: data.team, completed: data.completed }
+}
+
+export async function updateTask(taskId, completed) {
+  const { data } = await apiFetch('/api/db/tasks', {
+    method: 'PUT',
+    body: JSON.stringify({
+      id: taskId,
+      completed,
+    }),
+  })
+  return data
 }
 
 export async function deleteTask(taskId) {

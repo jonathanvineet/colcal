@@ -8,20 +8,7 @@ import Calendar from '../components/Calendar'
 import TeamMembersCard from '../components/TeamMembersCard'
 import * as db from '../lib/db'
 
-const DEFAULT_TEAMS = [
-  { name: 'Design Squad', color: '#3b82f6' },
-  { name: 'Dev Ops', color: '#a855f7' },
-  { name: 'Marketing', color: '#22c55e' },
-  { name: 'Sales Team', color: '#f97316' }
-]
 
-const DEFAULT_MEMBERS_BY_TEAM = {
-  General: ['Alex Morgan', 'Sam Lee', 'Jordan Kim'],
-  'Design Squad': ['Mia Patel', 'Leo Wang'],
-  'Dev Ops': ['Noah Brown', 'Priya Singh'],
-  Marketing: ['Olivia Davis', 'Ethan Reed'],
-  'Sales Team': ['Ava Wilson', 'Daniel Cruz']
-}
 
 function getDateKey(date) {
   return [
@@ -112,29 +99,9 @@ export default function Home() {
 
         if (cancelled) return
 
-        // Seed with defaults if DB is empty (first-ever login)
-        if (fetchedTeams.length === 0) {
-          setTeams(DEFAULT_TEAMS)
-          setActiveTeam(DEFAULT_TEAMS[0]?.name || null)
-          // Persist defaults to DB in background
-          DEFAULT_TEAMS.forEach((team, idx) => db.saveTeam(team, idx).catch(() => {}))
-        } else {
-          setTeams(fetchedTeams)
-          setActiveTeam(fetchedTeams[0]?.name || null)
-        }
-
-        // Seed members if empty
-        const hasFetchedMembers = Object.keys(fetchedMembers).length > 0
-        if (!hasFetchedMembers) {
-          setMembersByTeam(DEFAULT_MEMBERS_BY_TEAM)
-          // Persist defaults to DB in background
-          Object.entries(DEFAULT_MEMBERS_BY_TEAM).forEach(([teamName, names]) => {
-            names.forEach((name) => db.saveMember(teamName, name).catch(() => {}))
-          })
-        } else {
-          // Ensure General key exists
-          setMembersByTeam({ General: [], ...fetchedMembers })
-        }
+        setTeams(fetchedTeams)
+        setActiveTeam(fetchedTeams[0]?.name || null)
+        setMembersByTeam({ General: [], ...fetchedMembers })
 
         setWorkByDate(fetchedTasks)
         setNotesByDate(fetchedNotes)
@@ -246,6 +213,26 @@ export default function Home() {
       console.error('Failed to save task:', err)
     }
   }
+
+  const handleToggleTask = useCallback(async (task) => {
+    const newCompleted = !task.completed
+    
+    setWorkByDate((prev) => {
+      const copy = { ...prev }
+      if (copy[selectedDateKey]) {
+        copy[selectedDateKey] = copy[selectedDateKey].map((t) => 
+          t.id === task.id ? { ...t, completed: newCompleted } : t
+        )
+      }
+      return copy
+    })
+    
+    try {
+      await db.updateTask(task.id, newCompleted)
+    } catch (err) {
+      console.error('Failed to update task:', err)
+    }
+  }, [selectedDateKey])
 
   // ── Note handlers ─────────────────────────────────────────────────────
   async function handleSaveNote() {
@@ -372,9 +359,12 @@ export default function Home() {
 
           <aside className="right-rail">
             <div className="card">
-              <h3 style={{ margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {currentMonth} {toOrdinal(currentDay)}'s Work
-              </h3>
+              <div className="notes-card-head" style={{ marginBottom: '16px' }}>
+                <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {currentMonth} {toOrdinal(currentDay)}'s Work
+                </h3>
+                <Link href="/tasks" className="notes-explorer-link">Tasks Explorer</Link>
+              </div>
               <p className="muted" style={{ margin: '0 0 16px 0' }}>
                 Active team: {activeTeam || 'None'} (General tasks are always shown)
               </p>
@@ -410,13 +400,36 @@ export default function Home() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {visibleDateWork.length > 0 ? (
                   visibleDateWork.map((item) => (
-                    <div key={item.id || item.task} style={{ borderLeft: '2px solid var(--line-600)', paddingLeft: 12 }}>
-                      <div style={{ fontSize: 12, color: 'var(--fg-500)', display: 'flex', gap: 8 }}>
-                        <span>{item.time}</span>
-                        <span>•</span>
-                        <span>{item.team || 'General'}</span>
+                    <div key={item.id || item.task} style={{ 
+                        borderLeft: '2px solid var(--line-600)', 
+                        paddingLeft: 12,
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                        opacity: item.completed ? 0.6 : 1,
+                        transition: 'opacity 0.2s'
+                      }}>
+                      <div style={{ marginTop: 2 }}>
+                        <input
+                          type="checkbox"
+                          checked={item.completed || false}
+                          onChange={() => handleToggleTask(item)}
+                          style={{ cursor: 'pointer' }}
+                        />
                       </div>
-                      <div style={{ marginTop: 4 }}>{item.task}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, color: 'var(--fg-500)', display: 'flex', gap: 8 }}>
+                          <span>{item.time}</span>
+                          <span>•</span>
+                          <span>{item.team || 'General'}</span>
+                        </div>
+                        <div style={{ 
+                          marginTop: 4, 
+                          textDecoration: item.completed ? 'line-through' : 'none' 
+                        }}>
+                          {item.task}
+                        </div>
+                      </div>
                     </div>
                   ))
                 ) : (
