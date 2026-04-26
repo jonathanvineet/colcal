@@ -66,6 +66,22 @@ export default function TasksExplorerPage() {
     }
   }
 
+  const handleDeleteTask = async (task) => {
+    setTasksByDate(prev => {
+      const copy = { ...prev }
+      if (copy[task.dateKey]) {
+        copy[task.dateKey] = copy[task.dateKey].filter(t => t.id !== task.id)
+      }
+      return copy
+    })
+    
+    try {
+      await db.deleteTask(task.id)
+    } catch (err) {
+      console.error('Failed to delete task:', err)
+    }
+  }
+
   // Group tasks by team
   const tasksByTeam = useMemo(() => {
     const map = {}
@@ -201,6 +217,7 @@ export default function TasksExplorerPage() {
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: '12px', color: 'var(--fg-500)', marginBottom: '4px' }}>
                                 {formatTimestamp(task.dateKey, task.time)}
+                                {task.assignee && ` • Assigned to: ${task.assignee}`}
                               </div>
                               <div style={{ 
                                 fontSize: '15px', 
@@ -210,6 +227,14 @@ export default function TasksExplorerPage() {
                                 {task.task}
                               </div>
                             </div>
+                            <button 
+                              onClick={() => handleDeleteTask(task)} 
+                              className="member-remove-btn" 
+                              title="Delete Task" 
+                              style={{ alignSelf: 'center', marginLeft: 'auto', flexShrink: 0 }}
+                            >
+                              &times;
+                            </button>
                           </div>
                         ))}
                       </div>

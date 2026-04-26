@@ -59,6 +59,7 @@ export default function Home() {
   const [newTaskTime, setNewTaskTime] = useState('')
   const [newTaskText, setNewTaskText] = useState('')
   const [newTaskTeam, setNewTaskTeam] = useState('General')
+  const [newTaskAssignee, setNewTaskAssignee] = useState('')
   const [membersByTeam, setMembersByTeam] = useState({ General: [] })
 
   // ── Derived values ────────────────────────────────────────────────────
@@ -126,6 +127,7 @@ export default function Home() {
     } else {
       setNewTaskTeam('General')
     }
+    setNewTaskAssignee('') // reset assignee when switching active team
   }, [activeTeam])
 
   // ── Sync notes textarea when selected date changes ────────────────────
@@ -196,11 +198,13 @@ export default function Home() {
       time: newTaskTime || 'Anytime',
       task: trimmedTask,
       team: newTaskTeam,
+      assignee: newTaskAssignee || null,
     }
 
     setNewTaskText('')
     setNewTaskTime('')
     setNewTaskTeam(activeTeam || 'General')
+    setNewTaskAssignee('')
 
     try {
       // Save to DB first so we get the server-generated id
@@ -231,6 +235,22 @@ export default function Home() {
       await db.updateTask(task.id, newCompleted)
     } catch (err) {
       console.error('Failed to update task:', err)
+    }
+  }, [selectedDateKey])
+
+  const handleDeleteTask = useCallback(async (task) => {
+    setWorkByDate((prev) => {
+      const copy = { ...prev }
+      if (copy[selectedDateKey]) {
+        copy[selectedDateKey] = copy[selectedDateKey].filter((t) => t.id !== task.id)
+      }
+      return copy
+    })
+    
+    try {
+      await db.deleteTask(task.id)
+    } catch (err) {
+      console.error('Failed to delete task:', err)
     }
   }, [selectedDateKey])
 
@@ -359,11 +379,14 @@ export default function Home() {
 
           <aside className="right-rail">
             <div className="card">
-              <div className="notes-card-head" style={{ marginBottom: '16px' }}>
+              <div className="notes-card-head" style={{ marginBottom: '16px', flexWrap: 'wrap' }}>
                 <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   {currentMonth} {toOrdinal(currentDay)}'s Work
                 </h3>
-                <Link href="/tasks" className="notes-explorer-link">Tasks Explorer</Link>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <Link href="/tasks" className="notes-explorer-link">Tasks</Link>
+                  <Link href="/reports/member" className="notes-explorer-link" style={{ background: 'var(--brand)' }}>Reports</Link>
+                </div>
               </div>
               <p className="muted" style={{ margin: '0 0 16px 0' }}>
                 Active team: {activeTeam || 'None'} (General tasks are always shown)
@@ -385,6 +408,17 @@ export default function Home() {
                   <option value="General">General (all teams)</option>
                   {teams.map((team) => (
                     <option key={team.name} value={team.name}>{team.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={newTaskAssignee}
+                  onChange={(event) => setNewTaskAssignee(event.target.value)}
+                  aria-label="Task assignee"
+                  className="task-add-control task-add-assignee"
+                >
+                  <option value="">Unassigned</option>
+                  {(membersByTeam[newTaskTeam] || []).map((name) => (
+                    <option key={name} value={name}>{name}</option>
                   ))}
                 </select>
                 <input
@@ -422,6 +456,12 @@ export default function Home() {
                           <span>{item.time}</span>
                           <span>•</span>
                           <span>{item.team || 'General'}</span>
+                          {item.assignee && (
+                            <>
+                              <span>•</span>
+                              <span>{item.assignee}</span>
+                            </>
+                          )}
                         </div>
                         <div style={{ 
                           marginTop: 4, 
@@ -430,6 +470,14 @@ export default function Home() {
                           {item.task}
                         </div>
                       </div>
+                      <button 
+                        onClick={() => handleDeleteTask(item)} 
+                        className="member-remove-btn" 
+                        title="Delete Task" 
+                        style={{ alignSelf: 'center', marginLeft: 'auto', flexShrink: 0 }}
+                      >
+                        &times;
+                      </button>
                     </div>
                   ))
                 ) : (

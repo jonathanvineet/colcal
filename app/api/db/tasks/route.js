@@ -9,7 +9,7 @@ export async function GET() {
   const supabase = createServerSupabaseClient()
   const { data, error } = await supabase
     .from('tasks')
-    .select('id, date_key, time, task, team, completed')
+    .select('id, date_key, time, task, team, completed, assignee')
     .eq('user_id', userId)
     .order('created_at', { ascending: true })
 
@@ -21,7 +21,7 @@ export async function POST(request) {
   const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { dateKey, time, task, team, completed } = await request.json()
+  const { dateKey, time, task, team, completed, assignee } = await request.json()
   if (!dateKey || !task) {
     return NextResponse.json({ error: 'dateKey and task are required' }, { status: 400 })
   }
@@ -36,8 +36,9 @@ export async function POST(request) {
       task,
       team: team || 'General',
       completed: !!completed,
+      assignee: assignee || null,
     })
-    .select('id, date_key, time, task, team, completed')
+    .select('id, date_key, time, task, team, completed, assignee')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -59,7 +60,7 @@ export async function PUT(request) {
     .update({ completed: !!completed })
     .eq('user_id', userId)
     .eq('id', id)
-    .select('id, date_key, time, task, team, completed')
+    .select('id, date_key, time, task, team, completed, assignee')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
