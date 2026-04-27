@@ -1,12 +1,11 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '../auth/context'
-import { SignIn } from '@clerk/clerk-react'
+import { useUser, SignIn } from '@clerk/nextjs'
 import { dark } from '@clerk/themes'
 
 export default function Login() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user } = useUser()
 
   useEffect(() => {
     if (user) router.replace('/')
