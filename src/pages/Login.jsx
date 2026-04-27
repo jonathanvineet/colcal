@@ -1,16 +1,16 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '../auth/context'
 import { SignIn } from '@clerk/clerk-react'
 import { dark } from '@clerk/themes'
 
 export default function Login() {
-  const navigate = useNavigate()
+  const router = useRouter()
   const { user } = useAuth()
 
   useEffect(() => {
-    if (user) navigate('/', { replace: true })
-  }, [user, navigate])
+    if (user) router.replace('/')
+  }, [user, router])
 
   return (
     <div className="auth-container">

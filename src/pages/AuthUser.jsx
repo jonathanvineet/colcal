@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useRouter, useParams } from 'next/navigation'
 import supabase from '../lib/supabaseClient'
 import { ensureProfile } from '../lib/profiles'
 
 export default function AuthUser() {
-  const navigate = useNavigate()
-  const { id } = useParams()
+  const router = useRouter()
+  const { id } = useParams() || {}
   const [msg, setMsg] = useState('Finalizing sign-in…')
   const [err, setErr] = useState(false)
 
@@ -54,10 +54,10 @@ export default function AuthUser() {
         await supabase.auth.updateUser({ data: { magic_confirmed: true } })
       }
       await ensureProfile(user)
-      navigate(next, { replace: true })
+      router.replace(next)
     })()
     return () => { mounted = false }
-  }, [navigate, id])
+  }, [router, id])
 
   return (
     <div className="auth-container">

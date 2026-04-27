@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useRouter } from 'next/navigation'
 import supabase from '../lib/supabaseClient'
 import { ensureProfile, profileExists } from '../lib/profiles'
 
 export default function AuthCallback() {
-  const navigate = useNavigate()
+  const router = useRouter()
   const [message, setMessage] = useState('Finalizing sign-in…')
   const [hasError, setHasError] = useState(false)
 
@@ -51,7 +51,7 @@ export default function AuthCallback() {
         if (providers.includes('email') && !magicConfirmed) {
           await supabase.auth.updateUser({ data: { magic_confirmed: true } })
           await ensureProfile(user)
-          navigate(next, { replace: true })
+          router.replace(next)
           return
         }
 
@@ -78,7 +78,7 @@ export default function AuthCallback() {
         }
 
   // Otherwise, proceed into the app
-        navigate(next, { replace: true })
+        router.replace(next)
       } else {
         // If the hash contains code, let supabase handle it
         const { error: e2 } = hasCode ? await supabase.auth.exchangeCodeForSession(window.location.href) : { error: null }
@@ -88,13 +88,13 @@ export default function AuthCallback() {
         }
         const url = new URL(window.location.href)
         const next = url.searchParams.get('next') || '/'
-        navigate(next, { replace: true })
+        router.replace(next)
       }
     })()
     return () => {
       mounted = false
     }
-  }, [navigate])
+  }, [router])
 
   return (
     <div className="auth-container">
