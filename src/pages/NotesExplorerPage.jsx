@@ -43,7 +43,8 @@ function formatTimestamp(isoString) {
 }
 
 export default function NotesExplorerPage() {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
+  if (!isLoaded) return <div>Loading...</div>
   const [notesByDate, setNotesByDate] = useState({})
   const [notesLoading, setNotesLoading] = useState(true)
   const [notesQuery, setNotesQuery] = useState('')

@@ -1,3 +1,5 @@
+'use client'
+
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser, SignIn } from '@clerk/nextjs'
@@ -5,11 +7,13 @@ import { dark } from '@clerk/themes'
 
 export default function Login() {
   const router = useRouter()
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
 
   useEffect(() => {
-    if (user) router.replace('/')
-  }, [user, router])
+    if (isLoaded && user) router.replace('/')
+  }, [user, isLoaded, router])
+
+  if (!isLoaded) return <div>Loading...</div>
 
   return (
     <div className="auth-container">

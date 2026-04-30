@@ -12,7 +12,8 @@ function formatTimestamp(dateKey, time) {
 }
 
 export default function TasksExplorerPage() {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
+  if (!isLoaded) return <div>Loading...</div>
   const [dataLoading, setDataLoading] = useState(true)
   const [teams, setTeams] = useState([])
   const [tasksByDate, setTasksByDate] = useState({})

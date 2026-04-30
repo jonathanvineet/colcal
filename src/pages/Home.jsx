@@ -43,7 +43,8 @@ function formatTimestamp(isoString) {
 }
 
 export default function Home() {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
+  if (!isLoaded) return <div>Loading...</div>
 
   // ── Data state ────────────────────────────────────────────────────────
   const [dataLoading, setDataLoading] = useState(true)

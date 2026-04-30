@@ -11,7 +11,8 @@ function formatDateKey(dateKey) {
 }
 
 export default function MemberReportPage() {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
+  if (!isLoaded) return <div>Loading...</div>
   const [dataLoading, setDataLoading] = useState(true)
   const [allMembers, setAllMembers] = useState([])
   const [tasksByDate, setTasksByDate] = useState({})

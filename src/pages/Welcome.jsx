@@ -1,7 +1,10 @@
+'use client'
+
 import { useUser } from '@clerk/nextjs'
 
 export default function Welcome() {
-  const { user } = useUser()
+  const { user, isLoaded } = useUser()
+  if (!isLoaded) return <div>Loading...</div>
   return (
     <div className="auth-container">
       <div className="card auth-card">
