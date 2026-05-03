@@ -12,9 +12,22 @@
  */
 
 async function apiFetch(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json' }
+  
+  // Try to explicitly get the Clerk session token.
+  // This bypasses issues where browsers block third-party cookies on Vercel.
+  if (typeof window !== 'undefined' && window.Clerk && window.Clerk.session) {
+    try {
+      const token = await window.Clerk.session.getToken()
+      if (token) headers['Authorization'] = `Bearer ${token}`
+    } catch (e) {
+      console.warn('Failed to get Clerk token:', e)
+    }
+  }
+
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: { ...headers, ...(options.headers || {}) },
   })
   const json = await res.json()
   if (!res.ok) {
