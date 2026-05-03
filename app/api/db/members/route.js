@@ -1,37 +1,43 @@
-import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '../../../../src/lib/supabaseServer'
+import { getEffectiveAuth, applyAuthFilter } from '../../../../src/lib/authHelper'
 
-export async function GET() {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export async function GET(request) {
+  const authData = await getEffectiveAuth(request.url)
+  if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const supabase = createServerSupabaseClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('team_members')
-    .select('team_name, member_name')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: true })
+    .select('team_name, member_id')
+  
+  query = applyAuthFilter(query, authData)
+  const { data, error } = await query.order('created_at', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ data })
 }
 
 export async function POST(request) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authData = await getEffectiveAuth(request.url)
+  if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { teamName, memberName } = await request.json()
-  if (!teamName || !memberName) {
-    return NextResponse.json({ error: 'teamName and memberName are required' }, { status: 400 })
+  const { teamName, memberId } = await request.json()
+  if (!teamName || !memberId) {
+    return NextResponse.json({ error: 'teamName and memberId are required' }, { status: 400 })
   }
 
   const supabase = createServerSupabaseClient()
   const { error } = await supabase
     .from('team_members')
     .upsert(
-      { user_id: userId, team_name: teamName, member_name: memberName },
-      { onConflict: 'user_id,team_name,member_name' }
+      { 
+        user_id: authData.userId, 
+        org_id: authData.orgId === 'personal' ? null : authData.orgId,
+        team_name: teamName, 
+        member_id: memberId 
+      },
+      { onConflict: 'org_id,team_name,member_id' }
     )
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -39,24 +45,26 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authData = await getEffectiveAuth(request.url)
+  if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const teamName = searchParams.get('teamName')
-  const memberName = searchParams.get('memberName')
+  const memberId = searchParams.get('memberId')
 
-  if (!teamName || !memberName) {
-    return NextResponse.json({ error: 'teamName and memberName are required' }, { status: 400 })
+  if (!teamName || !memberId) {
+    return NextResponse.json({ error: 'teamName and memberId are required' }, { status: 400 })
   }
 
   const supabase = createServerSupabaseClient()
-  const { error } = await supabase
+  let query = supabase
     .from('team_members')
     .delete()
-    .eq('user_id', userId)
     .eq('team_name', teamName)
-    .eq('member_name', memberName)
+    .eq('member_id', memberId)
+  
+  query = applyAuthFilter(query, authData)
+  const { error } = await query
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })

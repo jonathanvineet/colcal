@@ -1,25 +1,26 @@
-import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '../../../../src/lib/supabaseServer'
+import { getEffectiveAuth, applyAuthFilter } from '../../../../src/lib/authHelper'
 
-export async function GET() {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export async function GET(request) {
+  const authData = await getEffectiveAuth(request.url)
+  if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const supabase = createServerSupabaseClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('tasks')
     .select('id, date_key, time, task, team, completed, assignee')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: true })
+  
+  query = applyAuthFilter(query, authData)
+  const { data, error } = await query.order('created_at', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ data })
 }
 
 export async function POST(request) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authData = await getEffectiveAuth(request.url)
+  if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { dateKey, time, task, team, completed, assignee } = await request.json()
   if (!dateKey || !task) {
@@ -30,7 +31,8 @@ export async function POST(request) {
   const { data, error } = await supabase
     .from('tasks')
     .insert({
-      user_id: userId,
+      user_id: authData.userId,
+      org_id: authData.orgId === 'personal' ? null : authData.orgId,
       date_key: dateKey,
       time: time || 'Anytime',
       task,
@@ -46,8 +48,8 @@ export async function POST(request) {
 }
 
 export async function PUT(request) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authData = await getEffectiveAuth(request.url)
+  if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id, completed } = await request.json()
   if (!id) {
@@ -55,32 +57,34 @@ export async function PUT(request) {
   }
 
   const supabase = createServerSupabaseClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('tasks')
     .update({ completed: !!completed })
-    .eq('user_id', userId)
     .eq('id', id)
-    .select('id, date_key, time, task, team, completed, assignee')
-    .single()
+
+  query = applyAuthFilter(query, authData)
+  const { data, error } = await query.select('id, date_key, time, task, team, completed, assignee').single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ data })
 }
 
 export async function DELETE(request) {
-  const { userId } = await auth()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authData = await getEffectiveAuth(request.url)
+  if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
   const supabase = createServerSupabaseClient()
-  const { error } = await supabase
+  let query = supabase
     .from('tasks')
     .delete()
-    .eq('user_id', userId)
     .eq('id', id)
+
+  query = applyAuthFilter(query, authData)
+  const { error } = await query
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })

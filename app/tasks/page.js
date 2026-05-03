@@ -13,7 +13,6 @@ function formatTimestamp(dateKey, time) {
 
 export default function TasksExplorerPage() {
   const { user, isLoaded } = useUser()
-  if (!isLoaded) return <div>Loading...</div>
   const [dataLoading, setDataLoading] = useState(true)
   const [teams, setTeams] = useState([])
   const [tasksByDate, setTasksByDate] = useState({})
@@ -103,6 +102,17 @@ export default function TasksExplorerPage() {
     
     return map
   }, [teams, tasksByDate])
+
+  if (!isLoaded) {
+    return (
+      <div style={{
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        height: '100vh', background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)', color: 'white',
+      }}>
+        Loading...
+      </div>
+    )
+  }
 
   if (dataLoading) {
     return (

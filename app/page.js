@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { useUser, UserButton } from '@clerk/nextjs'
+import { useUser, UserButton, OrganizationSwitcher } from '@clerk/nextjs'
 import Link from 'next/link'
 import YourTeamsCard from '@/components/YourTeamsCard'
 import Calendar from '@/components/Calendar'
@@ -42,7 +42,6 @@ function formatTimestamp(isoString) {
 
 export default function Home() {
   const { user, isLoaded } = useUser()
-  if (!isLoaded) return <div>Loading...</div>
 
   // ── Data state ────────────────────────────────────────────────────────
   const [dataLoading, setDataLoading] = useState(true)
@@ -287,6 +286,23 @@ export default function Home() {
   }
 
   // ── Loading / error states ────────────────────────────────────────────
+  if (!isLoaded) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
+        color: 'white',
+        flexDirection: 'column',
+        gap: 12
+      }}>
+        <div style={{ fontSize: 18, fontWeight: 600 }}>Loading...</div>
+      </div>
+    )
+  }
+
   if (dataLoading) {
     return (
       <div style={{
@@ -327,7 +343,12 @@ export default function Home() {
     <div className="home-page">
       <div className="header-bar">
         <h1>Colcal</h1>
-        {user && <UserButton afterSignOutUrl="/login" />}
+        {user && (
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <OrganizationSwitcher hidePersonal={false} />
+            <UserButton afterSignOutUrl="/login" />
+          </div>
+        )}
       </div>
 
       <div className="home-container">

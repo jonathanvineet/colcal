@@ -44,7 +44,6 @@ function formatTimestamp(isoString) {
 
 export default function NotesExplorerPage() {
   const { user, isLoaded } = useUser()
-  if (!isLoaded) return <div>Loading...</div>
   const [notesByDate, setNotesByDate] = useState({})
   const [notesLoading, setNotesLoading] = useState(true)
   const [notesQuery, setNotesQuery] = useState('')
@@ -178,6 +177,21 @@ export default function NotesExplorerPage() {
 
   function handleOpenNote(dateKey, text) {
     setPreviewEntry({ dateKey, text })
+  }
+
+  if (!isLoaded) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
+        color: 'white',
+      }}>
+        Loading...
+      </div>
+    )
   }
 
   if (notesLoading) {

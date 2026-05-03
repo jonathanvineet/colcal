@@ -1,40 +1,9 @@
+
 'use client'
 
-import { useMemo, useState } from 'react'
-
-function normalizeName(value) {
-  return value.trim().replace(/\s+/g, ' ')
-}
-
-function sanitizeMembers(list) {
-  if (!Array.isArray(list)) {
-    return []
-  }
-
-  const seen = new Set()
-  const next = []
-
-  list.forEach((item) => {
-    if (typeof item !== 'string') {
-      return
-    }
-
-    const cleaned = normalizeName(item)
-    if (!cleaned) {
-      return
-    }
-
-    const dedupeKey = cleaned.toLowerCase()
-    if (seen.has(dedupeKey)) {
-      return
-    }
-
-    seen.add(dedupeKey)
-    next.push(cleaned)
-  })
-
-  return next
-}
+import { useMemo, useState, useEffect } from 'react'
+import { useOrganization } from '@clerk/nextjs'
+import { fetchProfiles } from '../lib/db'
 
 export default function TeamMembersCard({
   teams,
@@ -43,117 +12,127 @@ export default function TeamMembersCard({
   onAddMember,
   onRemoveMember,
 }) {
+  const { organization, memberships, isLoaded } = useOrganization({
+    memberships: {
+      pageSize: 100, // Fetch up to 100 members initially
+    }
+  })
+  
+  const [profiles, setProfiles] = useState({})
   const [showAllMembers, setShowAllMembers] = useState(false)
-  const [memberName, setMemberName] = useState('')
 
   const selectedGroup = activeTeam || 'General'
+  const allTeams = ['General', ...teams.map(t => t.name)]
 
-  const allMembers = useMemo(() => {
-    const output = []
+  // Extract all org user IDs
+  const orgUsers = useMemo(() => {
+    if (!memberships?.data) return []
+    return memberships.data.map(m => m.publicUserData)
+  }, [memberships?.data])
 
-    sanitizeMembers(membersByTeam.General).forEach((name) => {
-      output.push({ name, team: 'General' })
-    })
+  // Fetch custom profiles for org users
+  useEffect(() => {
+    async function loadProfiles() {
+      const ids = orgUsers.map(u => u.userId)
+      if (ids.length === 0) return
+      try {
+        const fetched = await fetchProfiles(ids)
+        const profileMap = {}
+        fetched.forEach(p => {
+          profileMap[p.user_id] = p.display_name
+        })
+        setProfiles(profileMap)
+      } catch (error) {
+        console.error('Error fetching profiles:', error)
+      }
+    }
+    loadProfiles()
+  }, [orgUsers])
 
-    teams.forEach((team) => {
-      sanitizeMembers(membersByTeam[team.name]).forEach((name) => {
-        output.push({ name, team: team.name })
+  // Calculate memberships: { [userId]: Set([team1, team2]) }
+  const userMemberships = useMemo(() => {
+    const map = {}
+    Object.entries(membersByTeam).forEach(([teamName, memberIds]) => {
+      memberIds.forEach(id => {
+        if (!map[id]) map[id] = new Set()
+        map[id].add(teamName)
       })
     })
+    return map
+  }, [membersByTeam])
 
-    return output
-  }, [membersByTeam, teams])
-
-  const membersForSelectedGroup = useMemo(() => {
-    return sanitizeMembers(membersByTeam[selectedGroup])
-  }, [membersByTeam, selectedGroup])
-
-  async function handleAddMember(event) {
-    event.preventDefault()
-
-    const cleaned = normalizeName(memberName)
-    const targetGroup = selectedGroup
-
-    if (!cleaned) return
-
-    setMemberName('')
-    await onAddMember(targetGroup, cleaned)
+  async function handleToggleTeam(userId, teamName, isMember) {
+    if (isMember) {
+      await onRemoveMember(teamName, userId)
+    } else {
+      await onAddMember(teamName, userId)
+    }
   }
 
-  async function handleRemoveMember(teamName, memberNameToRemove) {
-    await onRemoveMember(teamName, memberNameToRemove)
+  if (!isLoaded) {
+    return <div className="card"><p className="muted">Loading organization members...</p></div>
+  }
+
+  if (!organization) {
+    return (
+      <div className="card">
+        <h3 style={{ margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Team Members</h3>
+        <p className="muted">Personal workspace: Create an organization to add members.</p>
+      </div>
+    )
   }
 
   return (
-    <div className="card">
-      <h3 style={{ margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        Team Members
-      </h3>
-      <p className="muted" style={{ margin: '0 0 16px 0' }}>
-        {showAllMembers
-          ? 'Showing all members. Toggle to return to your active team.'
-          : `Synced with ${selectedGroup}. Select another team above to switch.`}
-      </p>
-
-      <form onSubmit={handleAddMember} className="member-add-form">
-        <input
-          type="text"
-          value={memberName}
-          onChange={(event) => setMemberName(event.target.value)}
-          placeholder="Add member name"
-          aria-label="Member name"
-          className="member-add-input"
-        />
-        <button
-          type="button"
-          className={`member-view-toggle-btn ${showAllMembers ? 'is-all' : 'is-active'}`}
-          onClick={() => setShowAllMembers((current) => !current)}
-          aria-label={showAllMembers ? 'Show active team members' : 'Show all members'}
-          title={showAllMembers ? 'Show active team members' : 'Show all members'}
-        >
-          <span className="member-view-toggle-icon" aria-hidden="true" />
-        </button>
-        <button type="submit" className="member-add-submit">Add</button>
-      </form>
-
-      {(showAllMembers ? allMembers.length > 0 : membersForSelectedGroup.length > 0) ? (
-        <div className="members-list">
-          {showAllMembers
-            ? allMembers.map((entry, index) => (
-              <div key={`${entry.team}-${entry.name}-${index}`} className="member-item-row">
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600 }}>{entry.name}</div>
-                  <div className="muted small">{entry.team}</div>
-                </div>
-                <button
-                  type="button"
-                  className="member-remove-btn"
-                  onClick={() => handleRemoveMember(entry.team, entry.name)}
-                  aria-label={`Remove ${entry.name} from ${entry.team}`}
-                >
-                  x
-                </button>
-              </div>
-            ))
-            : membersForSelectedGroup.map((name) => (
-              <div key={`${selectedGroup}-${name}`} className="member-item-row">
-                <span style={{ fontWeight: 600 }}>{name}</span>
-                <button
-                  type="button"
-                  className="member-remove-btn"
-                  onClick={() => handleRemoveMember(selectedGroup, name)}
-                  aria-label={`Remove ${name}`}
-                >
-                  x
-                </button>
-              </div>
-            ))}
-        </div>
-      ) : (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div>
+        <h3 style={{ margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Team Members
+        </h3>
         <p className="muted" style={{ margin: 0 }}>
-          {showAllMembers ? 'No members yet.' : `No members set for ${selectedGroup}.`}
+          Manage your organization roster and team assignments.
         </p>
+      </div>
+
+      {orgUsers.length === 0 ? (
+        <p className="muted">No members found in this organization.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {orgUsers.map(user => {
+            const displayName = profiles[user.userId] || user.firstName || user.identifier || 'Unknown'
+            const userTeams = userMemberships[user.userId] || new Set()
+
+            return (
+              <div key={user.userId} style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px' }}>
+                <div style={{ fontWeight: 600, marginBottom: '8px' }}>{displayName}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {allTeams.map(teamName => {
+                    const isMember = userTeams.has(teamName)
+                    return (
+                      <button
+                        key={teamName}
+                        onClick={() => handleToggleTeam(user.userId, teamName, isMember)}
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '0.8rem',
+                          borderRadius: '4px',
+                          border: isMember ? '1px solid var(--accent-color)' : '1px solid var(--border-color)',
+                          background: isMember ? 'var(--accent-color)' : 'transparent',
+                          color: isMember ? '#fff' : 'inherit',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        {teamName}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )
 }
+

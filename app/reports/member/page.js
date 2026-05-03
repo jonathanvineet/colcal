@@ -12,7 +12,6 @@ function formatDateKey(dateKey) {
 
 export default function MemberReportPage() {
   const { user, isLoaded } = useUser()
-  if (!isLoaded) return <div>Loading...</div>
   const [dataLoading, setDataLoading] = useState(true)
   const [allMembers, setAllMembers] = useState([])
   const [tasksByDate, setTasksByDate] = useState({})
@@ -74,6 +73,17 @@ export default function MemberReportPage() {
 
   const handlePrint = () => {
     window.print()
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="no-print" style={{
+        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        height: '100vh', background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)', color: 'white',
+      }}>
+        Loading...
+      </div>
+    )
   }
 
   if (dataLoading) {
