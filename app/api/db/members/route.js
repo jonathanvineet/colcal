@@ -11,7 +11,12 @@ export async function GET(request) {
     .from('team_members')
     .select('team_name, member_id')
   
-  query = applyAuthFilter(query, authData)
+  if (authData.orgId === 'personal') {
+    query = query.is('org_id', null)
+  } else {
+    query = query.eq('org_id', authData.orgId)
+  }
+
   const { data, error } = await query.order('created_at', { ascending: true })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -32,7 +37,6 @@ export async function POST(request) {
     .from('team_members')
     .upsert(
       { 
-        user_id: authData.userId, 
         org_id: authData.orgId === 'personal' ? null : authData.orgId,
         team_name: teamName, 
         member_id: memberId 
@@ -63,7 +67,11 @@ export async function DELETE(request) {
     .eq('team_name', teamName)
     .eq('member_id', memberId)
   
-  query = applyAuthFilter(query, authData)
+  if (authData.orgId === 'personal') {
+    query = query.is('org_id', null)
+  } else {
+    query = query.eq('org_id', authData.orgId)
+  }
   const { error } = await query
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

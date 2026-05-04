@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState, useCallback } from 'react'
-import { useUser, UserButton, OrganizationSwitcher } from '@clerk/nextjs'
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { useUser, UserButton, OrganizationSwitcher, useOrganization } from '@clerk/nextjs'
 import Link from 'next/link'
 import YourTeamsCard from '@/components/YourTeamsCard'
 import Calendar from '@/components/Calendar'
@@ -42,8 +42,11 @@ function formatTimestamp(isoString) {
 
 export default function Home() {
   const { user, isLoaded } = useUser()
-
-  // ── Data state ────────────────────────────────────────────────────────
+  const { memberships } = useOrganization({
+    memberships: {
+      keepPreviousData: true,
+    },
+  })
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState(null)
 
@@ -58,11 +61,49 @@ export default function Home() {
   const [newTaskTeam, setNewTaskTeam] = useState('General')
   const [newTaskAssignee, setNewTaskAssignee] = useState('')
   const [membersByTeam, setMembersByTeam] = useState({ General: [] })
+  const syncedMembersRef = useRef(new Set())
 
   // ── Derived values ────────────────────────────────────────────────────
   const currentDay = selectedDate.getDate()
   const currentMonth = selectedDate.toLocaleString('default', { month: 'long' })
   const currentYear = selectedDate.getFullYear()
+
+  const orgMemberNames = useMemo(() => {
+    if (!memberships?.data) return []
+    return memberships.data.map((m) => {
+      const u = m.publicUserData
+      return `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.identifier
+    }).filter(Boolean)
+  }, [memberships?.data])
+
+  useEffect(() => {
+    if (!orgMemberNames.length || !membersByTeam['General']) return
+
+    let updated = false
+    const newGeneralMembers = [...membersByTeam['General']]
+
+    orgMemberNames.forEach(name => {
+      if (!newGeneralMembers.includes(name) && !syncedMembersRef.current.has(name)) {
+        // Automatically save them to the database!
+        db.saveMember('General', name).catch(console.error)
+        newGeneralMembers.push(name)
+        syncedMembersRef.current.add(name)
+        updated = true
+      }
+    })
+
+    if (updated) {
+      setMembersByTeam(prev => ({
+        ...prev,
+        General: newGeneralMembers
+      }))
+    }
+  }, [orgMemberNames, membersByTeam])
+
+  const assigneesForDropdown = useMemo(() => {
+    const dbMembers = membersByTeam[newTaskTeam] || []
+    return [...new Set([...dbMembers, ...orgMemberNames])]
+  }, [membersByTeam, newTaskTeam, orgMemberNames])
 
   const selectedDateKey = useMemo(() => getDateKey(selectedDate), [selectedDate])
   const selectedDateWork = workByDate[selectedDateKey] || []
@@ -417,7 +458,7 @@ export default function Home() {
                   className="task-add-control task-add-assignee"
                 >
                   <option value="">Unassigned</option>
-                  {(membersByTeam[newTaskTeam] || []).map((name) => (
+                  {assigneesForDropdown.map((name) => (
                     <option key={name} value={name}>{name}</option>
                   ))}
                 </select>

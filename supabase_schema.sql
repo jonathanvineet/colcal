@@ -29,7 +29,6 @@ create policy "service role manages user profiles" on user_profiles for all usin
 -- Team Members
 create table if not exists team_members (
   id uuid primary key default gen_random_uuid(),
-  user_id text not null,
   org_id text,
   team_name text not null,
   member_id text not null,
