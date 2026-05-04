@@ -42,11 +42,14 @@ function formatTimestamp(isoString) {
 
 export default function Home() {
   const { user, isLoaded } = useUser()
-  const { memberships } = useOrganization({
+  const { memberships, membership } = useOrganization({
     memberships: {
       keepPreviousData: true,
     },
   })
+
+  const isSuperuser = user?.id === process.env.NEXT_PUBLIC_SUPERUSER_ID
+  const isAdmin = isSuperuser || membership?.role === 'org:admin'
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState(null)
 
@@ -358,7 +361,13 @@ export default function Home() {
         <h1>Colcal</h1>
         {user && (
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <OrganizationSwitcher hidePersonal={false} />
+            <OrganizationSwitcher
+              hidePersonal={false}
+              hideSlug={true}
+              {...(user?.id !== process.env.NEXT_PUBLIC_SUPERUSER_ID && {
+                hideCreateOrganization: true,
+              })}
+            />
             <UserButton afterSignOutUrl="/login" />
           </div>
         )}
@@ -382,6 +391,7 @@ export default function Home() {
               setActiveTeam={setActiveTeam}
               onAddTeam={handleAddTeam}
               onRemoveTeam={handleRemoveTeam}
+              isAdmin={isAdmin}
             />
             <TeamMembersCard
               teams={teams}
@@ -391,6 +401,7 @@ export default function Home() {
               onRemoveMember={handleRemoveMember}
               selectedAssignees={selectedAssignees}
               onToggleAssignee={handleToggleAssignee}
+              isAdmin={isAdmin}
             />
           </aside>
 
@@ -420,65 +431,67 @@ export default function Home() {
                   <Link href="/reports/member" className="notes-explorer-link" style={{ background: 'var(--brand)' }}>Reports</Link>
                 </div>
               </div>
-              <form onSubmit={handleAddTask} className="task-add-form" style={{ marginBottom: 16 }}>
-                {(activeTeam || selectedAssignees.size > 0) && (
-                  <div style={{
-                    gridArea: 'info',
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 6,
-                    alignItems: 'center',
-                    fontSize: 12,
-                  }}>
-                    {activeTeam && (() => {
-                      const teamColor = teams.find(t => t.name === activeTeam)?.color || '#646cff'
-                      return (
+              {isAdmin && (
+                <form onSubmit={handleAddTask} className="task-add-form" style={{ marginBottom: 16 }}>
+                  {(activeTeam || selectedAssignees.size > 0) && (
+                    <div style={{
+                      gridArea: 'info',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 6,
+                      alignItems: 'center',
+                      fontSize: 12,
+                    }}>
+                      {activeTeam && (() => {
+                        const teamColor = teams.find(t => t.name === activeTeam)?.color || '#646cff'
+                        return (
+                          <>
+                            <span style={{ color: 'var(--fg-500)', marginRight: 2 }}>Team:</span>
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: '999px',
+                              border: `1px solid ${teamColor}60`,
+                              background: `${teamColor}18`,
+                              color: teamColor,
+                              fontSize: 11,
+                            }}>
+                              {activeTeam}
+                            </span>
+                          </>
+                        )
+                      })()}
+                      {activeTeam && selectedAssignees.size > 0 && (
+                        <span style={{ color: 'var(--line-600)', margin: '0 2px' }}>·</span>
+                      )}
+                      {selectedAssignees.size > 0 && (
                         <>
-                          <span style={{ color: 'var(--fg-500)', marginRight: 2 }}>Team:</span>
-                          <span style={{
-                            padding: '2px 8px',
-                            borderRadius: '999px',
-                            border: `1px solid ${teamColor}60`,
-                            background: `${teamColor}18`,
-                            color: teamColor,
-                            fontSize: 11,
-                          }}>
-                            {activeTeam}
-                          </span>
+                          <span style={{ color: 'var(--fg-500)', marginRight: 2 }}>Assigning to:</span>
+                          {[...selectedAssignees].map(name => (
+                            <span key={name} style={{
+                              padding: '2px 8px',
+                              borderRadius: '999px',
+                              border: '1px solid rgba(226, 179, 64, 0.3)',
+                              background: 'rgba(226, 179, 64, 0.08)',
+                              color: '#e2b340',
+                              fontSize: 11,
+                            }}>
+                              {name}
+                            </span>
+                          ))}
                         </>
-                      )
-                    })()}
-                    {activeTeam && selectedAssignees.size > 0 && (
-                      <span style={{ color: 'var(--line-600)', margin: '0 2px' }}>·</span>
-                    )}
-                    {selectedAssignees.size > 0 && (
-                      <>
-                        <span style={{ color: 'var(--fg-500)', marginRight: 2 }}>Assigning to:</span>
-                        {[...selectedAssignees].map(name => (
-                          <span key={name} style={{
-                            padding: '2px 8px',
-                            borderRadius: '999px',
-                            border: '1px solid rgba(226, 179, 64, 0.3)',
-                            background: 'rgba(226, 179, 64, 0.08)',
-                            color: '#e2b340',
-                            fontSize: 11,
-                          }}>
-                            {name}
-                          </span>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                )}
-                <textarea
-                  value={newTaskText}
-                  onChange={(event) => setNewTaskText(event.target.value)}
-                  placeholder={`Add task for this date${activeTeam ? ` → ${activeTeam}` : ''}`}
-                  aria-label="Task description"
-                  className="task-add-control task-add-input"
-                />
-                <button type="submit" className="task-add-submit">Add Task</button>
-              </form>
+                      )}
+                    </div>
+                  )}
+                  <textarea
+                    value={newTaskText}
+                    onChange={(event) => setNewTaskText(event.target.value)}
+                    placeholder={`Add task for this date${activeTeam ? ` → ${activeTeam}` : ''}`}
+                    aria-label="Task description"
+                    className="task-add-control task-add-input"
+                  />
+                  <button type="submit" className="task-add-submit">Add Task</button>
+                </form>
+              )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {visibleDateWork.length > 0 ? (
                   visibleDateWork.map((item) => (

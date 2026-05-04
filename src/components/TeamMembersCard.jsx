@@ -11,6 +11,7 @@ export default function TeamMembersCard({
   onRemoveMember,
   selectedAssignees,
   onToggleAssignee,
+  isAdmin,
 }) {
   const { organization, memberships, isLoaded } = useOrganization({
     memberships: {
@@ -77,7 +78,7 @@ export default function TeamMembersCard({
           Team Members
         </h3>
         <p className="muted" style={{ margin: 0, fontSize: 12 }}>
-          Click a name to select assignees. Click badges to manage teams.
+        Click a name to select assignees.{isAdmin && ' Click badges to manage teams.'}
         </p>
       </div>
 
@@ -106,13 +107,13 @@ export default function TeamMembersCard({
               }}>
                 {/* Name row — clickable to toggle assignee selection */}
                 <div
-                  onClick={() => onToggleAssignee(user.name)}
+                  onClick={() => isAdmin && onToggleAssignee(user.name)}
                   style={{
                     fontWeight: 600,
                     fontSize: 13,
-                    marginBottom: teamNames.length > 0 ? '8px' : 0,
+                    marginBottom: (isAdmin && teamNames.length > 0) ? '8px' : 0,
                     color: isSelected ? '#e2b340' : 'var(--fg-100)',
-                    cursor: 'pointer',
+                    cursor: isAdmin ? 'pointer' : 'default',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
@@ -152,7 +153,7 @@ export default function TeamMembersCard({
                   )}
                 </div>
                 {/* Team badges */}
-                {teamNames.length > 0 && (
+                {isAdmin && teamNames.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {teamNames.map(teamName => {
                       const isAssigned = assignedTeams.has(teamName)
