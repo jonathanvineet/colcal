@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useUser, UserButton, OrganizationSwitcher, useOrganization } from '@clerk/nextjs'
 import Link from 'next/link'
 import YourTeamsCard from '@/components/YourTeamsCard'
@@ -58,10 +58,8 @@ export default function Home() {
   const [activeTeam, setActiveTeam] = useState(null)
   const [workByDate, setWorkByDate] = useState({})
   const [newTaskText, setNewTaskText] = useState('')
-  const [newTaskTeam, setNewTaskTeam] = useState('General')
-  const [newTaskAssignee, setNewTaskAssignee] = useState('')
-  const [membersByTeam, setMembersByTeam] = useState({ General: [] })
-  const syncedMembersRef = useRef(new Set())
+  const [selectedAssignees, setSelectedAssignees] = useState(new Set())
+  const [membersByTeam, setMembersByTeam] = useState({})
 
   // ── Derived values ────────────────────────────────────────────────────
   const currentDay = selectedDate.getDate()
@@ -76,42 +74,15 @@ export default function Home() {
     }).filter(Boolean)
   }, [memberships?.data])
 
-  useEffect(() => {
-    if (!orgMemberNames.length || !membersByTeam['General']) return
 
-    let updated = false
-    const newGeneralMembers = [...membersByTeam['General']]
-
-    orgMemberNames.forEach(name => {
-      if (!newGeneralMembers.includes(name) && !syncedMembersRef.current.has(name)) {
-        // Automatically save them to the database!
-        db.saveMember('General', name).catch(console.error)
-        newGeneralMembers.push(name)
-        syncedMembersRef.current.add(name)
-        updated = true
-      }
-    })
-
-    if (updated) {
-      setMembersByTeam(prev => ({
-        ...prev,
-        General: newGeneralMembers
-      }))
-    }
-  }, [orgMemberNames, membersByTeam])
-
-  const assigneesForDropdown = useMemo(() => {
-    const dbMembers = membersByTeam[newTaskTeam] || []
-    return [...new Set([...dbMembers, ...orgMemberNames])]
-  }, [membersByTeam, newTaskTeam, orgMemberNames])
 
   const selectedDateKey = useMemo(() => getDateKey(selectedDate), [selectedDate])
   const selectedDateWork = workByDate[selectedDateKey] || []
   const selectedDateNotes = notesByDate[selectedDateKey] || []
   const selectedDateLatestNote = selectedDateNotes[selectedDateNotes.length - 1]?.text || ''
-  const visibleDateWork = selectedDateWork.filter((task) => (
-    task.team === 'General' || (activeTeam && task.team === activeTeam)
-  ))
+  const visibleDateWork = activeTeam
+    ? selectedDateWork.filter((task) => task.team === activeTeam)
+    : selectedDateWork
   const selectedDateSortedNotes = useMemo(() => (
     selectedDateNotes
       .slice()
@@ -140,7 +111,7 @@ export default function Home() {
 
         setTeams(fetchedTeams)
         setActiveTeam(fetchedTeams[0]?.name || null)
-        setMembersByTeam({ General: [], ...fetchedMembers })
+        setMembersByTeam(fetchedMembers)
 
         setWorkByDate(fetchedTasks)
         setNotesByDate(fetchedNotes)
@@ -158,21 +129,24 @@ export default function Home() {
     return () => { cancelled = true }
   }, [user?.id])
 
-  // ── Sync active team & task team input ────────────────────────────────
-  useEffect(() => {
-    if (activeTeam) {
-      setNewTaskTeam(activeTeam)
-    } else {
-      setNewTaskTeam('General')
-    }
-    setNewTaskAssignee('') // reset assignee when switching active team
-  }, [activeTeam])
-
   // ── Sync notes textarea when selected date changes ────────────────────
   useEffect(() => {
     setNotes(selectedDateLatestNote)
     setNoteSaveMessage('')
   }, [selectedDateKey, selectedDateLatestNote])
+
+  // ── Toggle assignee selection ─────────────────────────────────────────
+  const handleToggleAssignee = useCallback((name) => {
+    setSelectedAssignees(prev => {
+      const next = new Set(prev)
+      if (next.has(name)) {
+        next.delete(name)
+      } else {
+        next.add(name)
+      }
+      return next
+    })
+  }, [])
 
   // ── Team handlers ─────────────────────────────────────────────────────
   const handleAddTeam = useCallback(async (teamName, teamColor) => {
@@ -232,16 +206,16 @@ export default function Home() {
     const trimmedTask = newTaskText.trim()
     if (!trimmedTask) return
 
+    const assigneeList = [...selectedAssignees]
     const taskPayload = {
       time: 'Anytime',
       task: trimmedTask,
-      team: newTaskTeam,
-      assignee: newTaskAssignee || null,
+      team: activeTeam || 'Unassigned',
+      assignee: assigneeList.length > 0 ? assigneeList.join(', ') : null,
     }
 
     setNewTaskText('')
-    setNewTaskTeam(activeTeam || 'General')
-    setNewTaskAssignee('')
+    setSelectedAssignees(new Set())
 
     try {
       // Save to DB first so we get the server-generated id
@@ -257,17 +231,17 @@ export default function Home() {
 
   const handleToggleTask = useCallback(async (task) => {
     const newCompleted = !task.completed
-    
+
     setWorkByDate((prev) => {
       const copy = { ...prev }
       if (copy[selectedDateKey]) {
-        copy[selectedDateKey] = copy[selectedDateKey].map((t) => 
+        copy[selectedDateKey] = copy[selectedDateKey].map((t) =>
           t.id === task.id ? { ...t, completed: newCompleted } : t
         )
       }
       return copy
     })
-    
+
     try {
       await db.updateTask(task.id, newCompleted)
     } catch (err) {
@@ -283,7 +257,7 @@ export default function Home() {
       }
       return copy
     })
-    
+
     try {
       await db.deleteTask(task.id)
     } catch (err) {
@@ -415,6 +389,8 @@ export default function Home() {
               membersByTeam={membersByTeam}
               onAddMember={handleAddMember}
               onRemoveMember={handleRemoveMember}
+              selectedAssignees={selectedAssignees}
+              onToggleAssignee={handleToggleAssignee}
             />
           </aside>
 
@@ -447,36 +423,60 @@ export default function Home() {
                   <Link href="/reports/member" className="notes-explorer-link" style={{ background: 'var(--brand)' }}>Reports</Link>
                 </div>
               </div>
-              <p className="muted" style={{ margin: '0 0 16px 0' }}>
-                Active team: {activeTeam || 'None'} (General tasks are always shown)
-              </p>
               <form onSubmit={handleAddTask} className="task-add-form" style={{ marginBottom: 16 }}>
-                <select
-                  value={newTaskAssignee}
-                  onChange={(event) => setNewTaskAssignee(event.target.value)}
-                  aria-label="Task assignee"
-                  className="task-add-control task-add-assignee"
-                >
-                  <option value="">Unassigned</option>
-                  {assigneesForDropdown.map((name) => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                </select>
-                <select
-                  value={newTaskTeam}
-                  onChange={(event) => setNewTaskTeam(event.target.value)}
-                  aria-label="Task team"
-                  className="task-add-control task-add-team"
-                >
-                  <option value="General">General (all teams)</option>
-                  {teams.map((team) => (
-                    <option key={team.name} value={team.name}>{team.name}</option>
-                  ))}
-                </select>
+                {(activeTeam || selectedAssignees.size > 0) && (
+                  <div style={{
+                    gridArea: 'info',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 6,
+                    alignItems: 'center',
+                    fontSize: 12,
+                  }}>
+                    {activeTeam && (() => {
+                      const teamColor = teams.find(t => t.name === activeTeam)?.color || '#646cff'
+                      return (
+                        <>
+                          <span style={{ color: 'var(--fg-500)', marginRight: 2 }}>Team:</span>
+                          <span style={{
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            border: `1px solid ${teamColor}60`,
+                            background: `${teamColor}18`,
+                            color: teamColor,
+                            fontSize: 11,
+                          }}>
+                            {activeTeam}
+                          </span>
+                        </>
+                      )
+                    })()}
+                    {activeTeam && selectedAssignees.size > 0 && (
+                      <span style={{ color: 'var(--line-600)', margin: '0 2px' }}>·</span>
+                    )}
+                    {selectedAssignees.size > 0 && (
+                      <>
+                        <span style={{ color: 'var(--fg-500)', marginRight: 2 }}>Assigning to:</span>
+                        {[...selectedAssignees].map(name => (
+                          <span key={name} style={{
+                            padding: '2px 8px',
+                            borderRadius: '999px',
+                            border: '1px solid rgba(226, 179, 64, 0.3)',
+                            background: 'rgba(226, 179, 64, 0.08)',
+                            color: '#e2b340',
+                            fontSize: 11,
+                          }}>
+                            {name}
+                          </span>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
                 <textarea
                   value={newTaskText}
                   onChange={(event) => setNewTaskText(event.target.value)}
-                  placeholder="Add task for this date"
+                  placeholder={`Add task for this date${activeTeam ? ` → ${activeTeam}` : ''}`}
                   aria-label="Task description"
                   className="task-add-control task-add-input"
                   rows={3}
@@ -487,15 +487,15 @@ export default function Home() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {visibleDateWork.length > 0 ? (
                   visibleDateWork.map((item) => (
-                    <div key={item.id || item.task} style={{ 
-                        borderLeft: '2px solid var(--line-600)', 
-                        paddingLeft: 12,
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: 12,
-                        opacity: item.completed ? 0.6 : 1,
-                        transition: 'opacity 0.2s'
-                      }}>
+                    <div key={item.id || item.task} style={{
+                      borderLeft: '2px solid var(--line-600)',
+                      paddingLeft: 12,
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 12,
+                      opacity: item.completed ? 0.6 : 1,
+                      transition: 'opacity 0.2s'
+                    }}>
                       <div style={{ marginTop: 2 }}>
                         <input
                           type="checkbox"
@@ -506,7 +506,7 @@ export default function Home() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 12, color: 'var(--fg-500)', display: 'flex', gap: 8 }}>
-                          <span>{item.team || 'General'}</span>
+                          <span>{item.team || 'Unassigned'}</span>
                           {item.assignee && (
                             <>
                               <span>•</span>
@@ -514,17 +514,17 @@ export default function Home() {
                             </>
                           )}
                         </div>
-                        <div style={{ 
-                          marginTop: 4, 
-                          textDecoration: item.completed ? 'line-through' : 'none' 
+                        <div style={{
+                          marginTop: 4,
+                          textDecoration: item.completed ? 'line-through' : 'none'
                         }}>
                           {item.task}
                         </div>
                       </div>
-                      <button 
-                        onClick={() => handleDeleteTask(item)} 
-                        className="member-remove-btn" 
-                        title="Delete Task" 
+                      <button
+                        onClick={() => handleDeleteTask(item)}
+                        className="member-remove-btn"
+                        title="Delete Task"
                         style={{ alignSelf: 'center', marginLeft: 'auto', flexShrink: 0 }}
                       >
                         &times;
@@ -533,7 +533,7 @@ export default function Home() {
                   ))
                 ) : (
                   <p className="muted" style={{ margin: 0 }}>
-                    No tasks yet for {currentMonth} {toOrdinal(currentDay)} in {activeTeam || 'this team'}.
+                    No tasks yet for {currentMonth} {toOrdinal(currentDay)}{activeTeam ? ` in ${activeTeam}` : ''}.
                   </p>
                 )}
               </div>
@@ -549,7 +549,7 @@ export default function Home() {
               <p className="muted" style={{ margin: '0 0 12px 0' }}>
                 Notes for {currentMonth} {toOrdinal(currentDay)}
               </p>
-              
+
               <div className="notes-text-area-wrapper" style={{ marginTop: 12 }}>
                 <textarea
                   value={notes}

@@ -83,7 +83,7 @@ export default function YourTeamsCard({
               : '1px solid rgba(255, 255, 255, 0.1)',
             boxShadow: activeTeam === team.name ? `0 0 0 1px ${team.color}40` : 'none'
           }}
-          onClick={() => setActiveTeam(team.name)}
+          onClick={() => setActiveTeam(activeTeam === team.name ? null : team.name)}
           onMouseEnter={(e) => {
             e.currentTarget.style.borderColor = team.color
             e.currentTarget.style.boxShadow = `0 0 20px ${team.color}40`
@@ -104,7 +104,7 @@ export default function YourTeamsCard({
                 boxShadow: `0 0 12px ${team.color}`,
                 flexShrink: 0
               }} />
-              <span style={{ color: 'white', fontSize: '15px', fontWeight: '500' }}>
+              <span style={{ color: 'white', fontSize: '13px', fontWeight: '500' }}>
                 {team.name}
               </span>
               {activeTeam === team.name && (
