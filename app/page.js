@@ -54,7 +54,6 @@ export default function Home() {
   const [teams, setTeams] = useState([])
   const [activeTeam, setActiveTeam] = useState(null)
   const [workByDate, setWorkByDate] = useState({})
-  const [newTaskTime, setNewTaskTime] = useState('')
   const [newTaskText, setNewTaskText] = useState('')
   const [newTaskTeam, setNewTaskTeam] = useState('General')
   const [newTaskAssignee, setNewTaskAssignee] = useState('')
@@ -193,14 +192,13 @@ export default function Home() {
     if (!trimmedTask) return
 
     const taskPayload = {
-      time: newTaskTime || 'Anytime',
+      time: 'Anytime',
       task: trimmedTask,
       team: newTaskTeam,
       assignee: newTaskAssignee || null,
     }
 
     setNewTaskText('')
-    setNewTaskTime('')
     setNewTaskTeam(activeTeam || 'General')
     setNewTaskAssignee('')
 
@@ -412,24 +410,6 @@ export default function Home() {
                 Active team: {activeTeam || 'None'} (General tasks are always shown)
               </p>
               <form onSubmit={handleAddTask} className="task-add-form" style={{ marginBottom: 16 }}>
-                <input
-                  type="time"
-                  value={newTaskTime}
-                  onChange={(event) => setNewTaskTime(event.target.value)}
-                  aria-label="Task time"
-                  className="task-add-control task-add-time"
-                />
-                <select
-                  value={newTaskTeam}
-                  onChange={(event) => setNewTaskTeam(event.target.value)}
-                  aria-label="Task team"
-                  className="task-add-control task-add-team"
-                >
-                  <option value="General">General (all teams)</option>
-                  {teams.map((team) => (
-                    <option key={team.name} value={team.name}>{team.name}</option>
-                  ))}
-                </select>
                 <select
                   value={newTaskAssignee}
                   onChange={(event) => setNewTaskAssignee(event.target.value)}
@@ -441,13 +421,25 @@ export default function Home() {
                     <option key={name} value={name}>{name}</option>
                   ))}
                 </select>
-                <input
-                  type="text"
+                <select
+                  value={newTaskTeam}
+                  onChange={(event) => setNewTaskTeam(event.target.value)}
+                  aria-label="Task team"
+                  className="task-add-control task-add-team"
+                >
+                  <option value="General">General (all teams)</option>
+                  {teams.map((team) => (
+                    <option key={team.name} value={team.name}>{team.name}</option>
+                  ))}
+                </select>
+                <textarea
                   value={newTaskText}
                   onChange={(event) => setNewTaskText(event.target.value)}
                   placeholder="Add task for this date"
                   aria-label="Task description"
                   className="task-add-control task-add-input"
+                  rows={3}
+                  style={{ resize: 'vertical' }}
                 />
                 <button type="submit" className="task-add-submit">Add Task</button>
               </form>
@@ -473,8 +465,6 @@ export default function Home() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 12, color: 'var(--fg-500)', display: 'flex', gap: 8 }}>
-                          <span>{item.time}</span>
-                          <span>•</span>
                           <span>{item.team || 'General'}</span>
                           {item.assignee && (
                             <>

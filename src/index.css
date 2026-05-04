@@ -664,11 +664,12 @@ textarea:focus {
 
 .task-add-form {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr) 132px;
+  grid-template-columns: 140px minmax(0, 1fr);
   grid-template-areas:
-    'time team team'
-    'task task add';
-  align-items: center;
+    'assignee team'
+    'task task'
+    'add add';
+  align-items: stretch;
   gap: 8px;
 }
 
@@ -678,8 +679,8 @@ textarea:focus {
   font-size: 13px;
 }
 
-.task-add-time {
-  grid-area: time;
+.task-add-assignee {
+  grid-area: assignee;
   width: 100%;
 }
 
@@ -695,10 +696,11 @@ textarea:focus {
 
 .task-add-submit {
   grid-area: add;
-  min-height: 34px;
-  min-width: 132px;
-  padding: 8px 18px;
-  font-size: 13px;
+  justify-self: end;
+  min-height: 28px;
+  min-width: auto;
+  padding: 6px 14px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -846,7 +848,7 @@ textarea:focus {
   .task-add-form {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      'time'
+      'assignee'
       'team'
       'task'
       'add';
@@ -854,6 +856,7 @@ textarea:focus {
 
   .task-add-submit {
     width: 100%;
+    justify-self: stretch;
   }
 }
 
