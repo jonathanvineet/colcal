@@ -1,6 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '../../../../../../src/lib/supabaseServer'
+import { createServerSupabaseClient } from '../../../../../src/lib/supabaseServer'
 
 export async function GET() {
   const { userId } = await auth()
