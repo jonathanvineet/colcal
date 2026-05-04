@@ -692,6 +692,31 @@ textarea:focus {
 .task-add-input {
   grid-area: task;
   width: 100%;
+  height: 150px;
+  resize: vertical;
+}
+
+.notes-text-area {
+  width: 100%;
+  height: 150px;
+  resize: vertical;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--line-600);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--fg-100);
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.notes-text-area::placeholder {
+  color: var(--fg-500);
+}
+
+.notes-text-area:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--glow) inset;
 }
 
 .task-add-submit {

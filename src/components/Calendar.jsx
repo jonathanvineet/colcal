@@ -158,7 +158,7 @@ export default function Calendar({ userId, selectedDate, onDateChange }) {
         headerToolbar={{
           left: 'prev,next today',
           center: 'title',
-          right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
+          right: '',
         }}
         selectable
         selectMirror

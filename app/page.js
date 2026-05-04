@@ -400,9 +400,6 @@ export default function Home() {
                 <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Team Calendar
                 </h3>
-                <p className="muted" style={{ margin: 0, fontSize: 12 }}>
-                  Selected date: {currentMonth} {toOrdinal(currentDay)}, {currentYear}
-                </p>
               </div>
               <Calendar
                 userId={user?.id}
@@ -479,8 +476,6 @@ export default function Home() {
                   placeholder={`Add task for this date${activeTeam ? ` → ${activeTeam}` : ''}`}
                   aria-label="Task description"
                   className="task-add-control task-add-input"
-                  rows={3}
-                  style={{ resize: 'vertical' }}
                 />
                 <button type="submit" className="task-add-submit">Add Task</button>
               </form>
