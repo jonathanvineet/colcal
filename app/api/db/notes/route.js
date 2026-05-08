@@ -28,24 +28,32 @@ export async function POST(request) {
   }
 
   const supabase = createServerSupabaseClient()
-  const { error } = await supabase
-    .from('notes')
-    .upsert(
-      {
-        id,
-        user_id: authData.userId,
-        org_id: authData.orgId === 'personal' ? null : authData.orgId,
-        date_key: dateKey,
-        text,
-        author_name: authorName || 'Unknown User',
-        team: team || 'General',
-        saved_at: savedAt || new Date().toISOString(),
-      },
-      { onConflict: 'id' }
-    )
+  const notePayload = {
+    user_id: authData.userId,
+    org_id: authData.orgId === 'personal' ? null : authData.orgId,
+    date_key: dateKey,
+    text,
+    author_name: authorName || 'Unknown User',
+    team: team || 'General',
+    saved_at: savedAt || new Date().toISOString(),
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
+  let updateQuery = supabase.from('notes').update(notePayload).eq('id', id)
+  updateQuery = applyAuthFilter(updateQuery, authData)
+  const { data: updatedRows, error: updateError } = await updateQuery.select('id')
+
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+
+  if (updatedRows && updatedRows.length > 0) {
+    return NextResponse.json({ success: true, mode: 'updated' })
+  }
+
+  const { error: insertError } = await supabase
+    .from('notes')
+    .insert({ id, ...notePayload })
+
+  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+  return NextResponse.json({ success: true, mode: 'inserted' })
 }
 
 export async function DELETE(request) {

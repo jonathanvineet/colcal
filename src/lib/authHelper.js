@@ -7,7 +7,7 @@ export async function getEffectiveAuth(requestUrl) {
     return { userId: null, orgId: null }
   }
 
-  const isSuperUser = process.env.NEXT_PUBLIC_SUPERUSER_ID && userId === process.env.NEXT_PUBLIC_SUPERUSER_ID
+  const isSuperUser = process.env.SUPERUSER_ID && userId === process.env.SUPERUSER_ID
   
   // Use orgId if available, otherwise fallback to 'personal' so queries still isolate to null/personal boundary
   let effectiveOrgId = orgId || 'personal'

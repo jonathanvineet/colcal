@@ -5,7 +5,7 @@ import { createServerSupabaseClient } from '../../../../../src/lib/supabaseServe
 export async function GET() {
   const { userId } = await auth()
   
-  if (!userId || userId !== process.env.NEXT_PUBLIC_SUPERUSER_ID) {
+  if (!userId || userId !== process.env.SUPERUSER_ID) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

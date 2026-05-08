@@ -3,10 +3,19 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useUser, UserButton, OrganizationSwitcher, useOrganization } from '@clerk/nextjs'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import YourTeamsCard from '@/components/YourTeamsCard'
-import Calendar from '@/components/Calendar'
 import TeamMembersCard from '@/components/TeamMembersCard'
 import * as db from '@/lib/db'
+
+const Calendar = dynamic(() => import('@/components/Calendar'), {
+  ssr: false,
+  loading: () => (
+    <div className="calendar-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300, color: 'rgba(255,255,255,0.4)', fontSize: 14 }}>
+      Loading calendar…
+    </div>
+  )
+})
 
 function getDateKey(date) {
   return [
@@ -48,7 +57,7 @@ export default function Home() {
     },
   })
 
-  const isSuperuser = user?.id === process.env.NEXT_PUBLIC_SUPERUSER_ID
+  const isSuperuser = user?.publicMetadata?.isSuperuser === true
   const isAdmin = isSuperuser || membership?.role === 'org:admin'
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState(null)
@@ -364,7 +373,7 @@ export default function Home() {
             <OrganizationSwitcher
               hidePersonal={false}
               hideSlug={true}
-              {...(user?.id !== process.env.NEXT_PUBLIC_SUPERUSER_ID && {
+              {...(!isSuperuser && {
                 hideCreateOrganization: true,
               })}
             />

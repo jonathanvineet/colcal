@@ -12,7 +12,7 @@ export default function SuperuserDashboard() {
   useEffect(() => {
     if (!isLoaded || !user) return;
 
-    if (user.id !== process.env.NEXT_PUBLIC_SUPERUSER_ID) {
+    if (user?.publicMetadata?.isSuperuser !== true) {
       setError('Access Denied. You are not a superuser.')
       setLoading(false)
       return;
