@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useUser, UserButton, useOrganization } from '@clerk/nextjs'
 import * as db from '@/lib/db'
+import { UploadButton } from '@/utils/uploadthing'
 
 function formatTimestamp(dateKey, time) {
   const date = new Date(`${dateKey}T00:00:00`)
@@ -449,17 +450,58 @@ export default function TasksExplorerPage() {
               {/* Footer */}
               <div style={{
                 padding: '16px 24px', borderTop: '1px solid var(--line-600)',
-                display: 'flex', justifyContent: 'flex-end', gap: '12px',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 backgroundColor: 'var(--bg-900)'
               }}>
-                <button onClick={handleCloseDetails} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--line-600)', backgroundColor: 'var(--bg-800)', color: 'var(--fg-300)', cursor: 'pointer', fontWeight: 500 }}>
-                  {canEdit ? 'Cancel' : 'Close'}
-                </button>
-                {canEdit && (
-                  <button onClick={handleSaveDetails} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid rgba(100, 108, 255, 0.4)', backgroundColor: 'rgba(100, 108, 255, 0.1)', color: '#646cff', cursor: 'pointer', fontWeight: 600 }}>
-                    Save Document
+                <div>
+                  {canEdit && (
+                    <UploadButton
+                      endpoint="taskAttachment"
+                      onClientUploadComplete={(res) => {
+                        if (res && res.length > 0) {
+                          const fileUrl = res[0].url;
+                          const fileName = res[0].name;
+                          setDetailsDraft(prev => prev + `\n\n[Attachment: ${fileName}](${fileUrl})`);
+                        }
+                      }}
+                      onUploadError={(error) => {
+                        alert(`ERROR! ${error.message}`);
+                      }}
+                      appearance={{
+                        button: {
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid var(--line-600)',
+                          color: 'var(--fg-300)',
+                          padding: '4px 12px',
+                          fontSize: '13px',
+                          borderRadius: '6px',
+                          height: 'auto',
+                          minHeight: 'auto',
+                          fontWeight: 500,
+                          cursor: 'pointer'
+                        },
+                        allowedContent: { display: 'none' }
+                      }}
+                      content={{
+                        button({ ready, isUploading }) {
+                          if (isUploading) return "Uploading...";
+                          if (ready) return "Attach File";
+                          return "Getting ready...";
+                        },
+                      }}
+                    />
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button onClick={handleCloseDetails} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--line-600)', backgroundColor: 'var(--bg-800)', color: 'var(--fg-300)', cursor: 'pointer', fontWeight: 500 }}>
+                    {canEdit ? 'Cancel' : 'Close'}
                   </button>
-                )}
+                  {canEdit && (
+                    <button onClick={handleSaveDetails} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid rgba(100, 108, 255, 0.4)', backgroundColor: 'rgba(100, 108, 255, 0.1)', color: '#646cff', cursor: 'pointer', fontWeight: 600 }}>
+                      Save Document
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

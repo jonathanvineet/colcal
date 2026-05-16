@@ -2,6 +2,7 @@ import { ClerkProvider } from '@clerk/nextjs'
 import { dark } from '@clerk/themes'
 import '../src/index.css'
 import '../src/App.css'
+import "@uploadthing/react/styles.css"
 
 export const metadata = {
   title: 'Colcal',
