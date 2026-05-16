@@ -139,6 +139,7 @@ export async function fetchTasks() {
       team: row.team,
       completed: row.completed || false,
       assignee: row.assignee || null,
+      details: row.details || '',
     })
   }
   return tasksByDate
@@ -157,9 +158,10 @@ export async function saveTask(dateKey, task) {
       team: task.team,
       completed: task.completed || false,
       assignee: task.assignee || null,
+      details: task.details || '',
     }),
   })
-  return { id: data.id, time: data.time, task: data.task, team: data.team, completed: data.completed, assignee: data.assignee }
+  return { id: data.id, time: data.time, task: data.task, team: data.team, completed: data.completed, assignee: data.assignee, details: data.details || '' }
 }
 
 export async function updateTask(taskId, updates) {

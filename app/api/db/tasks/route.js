@@ -9,7 +9,7 @@ export async function GET(request) {
   const supabase = createServerSupabaseClient()
   let query = supabase
     .from('tasks')
-    .select('id, date_key, time, task, team, completed, assignee')
+    .select('id, date_key, time, task, team, completed, assignee, details')
   
   query = applyAuthFilter(query, authData)
   const { data, error } = await query.order('created_at', { ascending: true })
@@ -22,7 +22,7 @@ export async function POST(request) {
   const authData = await getEffectiveAuth(request.url)
   if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { dateKey, time, task, team, completed, assignee } = await request.json()
+  const { dateKey, time, task, team, completed, assignee, details } = await request.json()
   if (!dateKey || !task) {
     return NextResponse.json({ error: 'dateKey and task are required' }, { status: 400 })
   }
@@ -39,8 +39,9 @@ export async function POST(request) {
       team: team || 'General',
       completed: !!completed,
       assignee: assignee || null,
+      details: details || null,
     })
-    .select('id, date_key, time, task, team, completed, assignee')
+    .select('id, date_key, time, task, team, completed, assignee, details')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -52,7 +53,7 @@ export async function PUT(request) {
   if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { id, completed, task, assignee, team } = body
+  const { id, completed, task, assignee, team, details } = body
   if (!id) {
     return NextResponse.json({ error: 'id is required' }, { status: 400 })
   }
@@ -62,6 +63,7 @@ export async function PUT(request) {
   if (task !== undefined) updates.task = task
   if (assignee !== undefined) updates.assignee = assignee === '' ? null : assignee
   if (team !== undefined) updates.team = team
+  if (details !== undefined) updates.details = details
 
   const supabase = createServerSupabaseClient()
   let query = supabase
@@ -70,7 +72,7 @@ export async function PUT(request) {
     .eq('id', id)
 
   query = applyAuthFilter(query, authData)
-  const { data, error } = await query.select('id, date_key, time, task, team, completed, assignee').single()
+  const { data, error } = await query.select('id, date_key, time, task, team, completed, assignee, details').single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ data })

@@ -28,6 +28,43 @@ export default function TasksExplorerPage() {
   const [editingTaskId, setEditingTaskId] = useState(null)
   const [editForm, setEditForm] = useState({ task: '', assignee: '' })
 
+  const [activeTaskForDetails, setActiveTaskForDetails] = useState(null)
+  const [detailsDraft, setDetailsDraft] = useState('')
+
+  const handleOpenDetails = (task) => {
+    setActiveTaskForDetails(task)
+    setDetailsDraft(task.details || '')
+  }
+
+  const handleCloseDetails = () => {
+    setActiveTaskForDetails(null)
+    setDetailsDraft('')
+  }
+
+  const handleSaveDetails = async () => {
+    if (!activeTaskForDetails) return
+    const task = activeTaskForDetails
+    const newDetails = detailsDraft
+
+    setTasksByDate(prev => {
+      const copy = { ...prev }
+      if (copy[task.dateKey]) {
+        copy[task.dateKey] = copy[task.dateKey].map(t => 
+          t.id === task.id ? { ...t, details: newDetails } : t
+        )
+      }
+      return copy
+    })
+    
+    handleCloseDetails()
+
+    try {
+      await db.updateTask(task.id, { details: newDetails })
+    } catch (err) {
+      console.error('Failed to update task details:', err)
+    }
+  }
+
   useEffect(() => {
     if (!user?.id) return
     let cancelled = false
@@ -310,8 +347,21 @@ export default function TasksExplorerPage() {
                                     {task.task}
                                   </div>
                                 </div>
-                                {isAdmin && (
-                                  <div style={{ display: 'flex', gap: '8px', alignSelf: 'center', marginLeft: 'auto', flexShrink: 0 }}>
+                                <div style={{ display: 'flex', gap: '8px', alignSelf: 'center', marginLeft: 'auto', flexShrink: 0 }}>
+                                  <button
+                                    onClick={() => handleOpenDetails(task)}
+                                    title="Proof & Details"
+                                    style={{
+                                      background: 'transparent', border: '1px solid var(--line-600)',
+                                      color: 'var(--fg-300)', padding: '4px 8px', borderRadius: '4px',
+                                      fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
+                                    }}
+                                  >
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                                    Details
+                                  </button>
+                                  {isAdmin && (
+                                    <>
                                     <button 
                                       onClick={() => startEdit(task)} 
                                       style={{ background: 'transparent', border: '1px solid var(--line-600)', color: 'var(--fg-300)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}
@@ -325,8 +375,9 @@ export default function TasksExplorerPage() {
                                     >
                                       &times;
                                     </button>
-                                  </div>
-                                )}
+                                    </>
+                                  )}
+                                </div>
                               </>
                             )}
                           </div>
@@ -344,6 +395,76 @@ export default function TasksExplorerPage() {
           })}
         </div>
       </div>
+
+      {/* Document Editor Modal */}
+      {activeTaskForDetails && (() => {
+        const canEdit = isAdmin || activeTaskForDetails.assignee === userDisplayName;
+        return (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 50,
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <div style={{
+              width: '40vw', minWidth: '500px', height: '80vh',
+              backgroundColor: 'var(--bg-800)',
+              borderRadius: '12px',
+              boxShadow: '0 0 0 1px rgba(255, 255, 255, 0.05), 0 30px 80px rgba(0,0,0,0.8)',
+              display: 'flex', flexDirection: 'column',
+              overflow: 'hidden'
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: '16px 24px', borderBottom: '1px solid var(--line-600)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                backgroundColor: 'var(--bg-900)'
+              }}>
+                <div style={{ flex: 1, marginRight: '16px' }}>
+                  <h3 style={{ margin: 0, color: 'var(--fg-100)', fontSize: '16px', fontWeight: 600 }}>Task Proof & Details</h3>
+                  <p style={{ margin: '4px 0 0 0', color: 'var(--fg-500)', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {activeTaskForDetails.task}
+                  </p>
+                </div>
+                <button onClick={handleCloseDetails} style={{ background: 'none', border: 'none', fontSize: '28px', cursor: 'pointer', color: 'var(--fg-500)', display: 'flex', alignItems: 'center', transition: 'color 0.2s' }} onMouseOver={(e) => e.target.style.color = 'var(--fg-100)'} onMouseOut={(e) => e.target.style.color = 'var(--fg-500)'}>&times;</button>
+              </div>
+              
+              {/* Editor Area */}
+              <textarea
+                value={detailsDraft}
+                onChange={(e) => setDetailsDraft(e.target.value)}
+                placeholder={canEdit ? "Type your notes, attach proof links, or add extra instructions here..." : "No details provided for this task."}
+                readOnly={!canEdit}
+                style={{
+                  flex: 1, width: '100%', padding: '32px 48px',
+                  border: 'none', outline: 'none',
+                  resize: 'none',
+                  fontSize: '15px', lineHeight: '1.8',
+                  color: 'var(--fg-100)', backgroundColor: canEdit ? 'var(--bg-800)' : 'rgba(255, 255, 255, 0.02)',
+                  fontFamily: 'var(--font-sans), system-ui, sans-serif'
+                }}
+              />
+
+              {/* Footer */}
+              <div style={{
+                padding: '16px 24px', borderTop: '1px solid var(--line-600)',
+                display: 'flex', justifyContent: 'flex-end', gap: '12px',
+                backgroundColor: 'var(--bg-900)'
+              }}>
+                <button onClick={handleCloseDetails} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid var(--line-600)', backgroundColor: 'var(--bg-800)', color: 'var(--fg-300)', cursor: 'pointer', fontWeight: 500 }}>
+                  {canEdit ? 'Cancel' : 'Close'}
+                </button>
+                {canEdit && (
+                  <button onClick={handleSaveDetails} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid rgba(100, 108, 255, 0.4)', backgroundColor: 'rgba(100, 108, 255, 0.1)', color: '#646cff', cursor: 'pointer', fontWeight: 600 }}>
+                    Save Document
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   )
 }

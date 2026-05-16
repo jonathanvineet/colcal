@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, Fragment } from 'react'
 import Link from 'next/link'
 import { useUser, UserButton, useOrganization } from '@clerk/nextjs'
 import * as db from '@/lib/db'
@@ -192,18 +192,31 @@ export default function MemberReportPage() {
                       </thead>
                       <tbody>
                         {tasks.map(task => (
-                          <tr key={task.id}>
-                            <td style={{ textAlign: 'center' }}>
-                              <div className={`print-checkbox ${task.completed ? 'is-checked' : ''}`}>
-                                {task.completed && '✓'}
-                              </div>
-                            </td>
-                            <td>{task.time}</td>
-                            <td>{task.team || 'General'}</td>
-                            <td style={{ textDecoration: task.completed ? 'line-through' : 'none', color: task.completed ? '#777' : '#222' }}>
-                              {task.task}
-                            </td>
-                          </tr>
+                          <Fragment key={task.id}>
+                            <tr>
+                              <td style={{ textAlign: 'center' }}>
+                                <div className={`print-checkbox ${task.completed ? 'is-checked' : ''}`}>
+                                  {task.completed && '✓'}
+                                </div>
+                              </td>
+                              <td>{task.time}</td>
+                              <td>{task.team || 'General'}</td>
+                              <td style={{ textDecoration: task.completed ? 'line-through' : 'none', color: task.completed ? '#777' : '#222' }}>
+                                {task.task}
+                              </td>
+                            </tr>
+                            {task.details && (
+                              <tr>
+                                <td></td>
+                                <td colSpan="3" style={{ paddingBottom: '16px', paddingTop: 0 }}>
+                                  <div style={{ padding: '12px', background: '#f9fafb', borderRadius: '6px', borderLeft: '3px solid #3b82f6', color: '#4b5563', fontSize: '13px', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                                    <strong style={{ display: 'block', marginBottom: '4px', color: '#111827' }}>Proof & Details:</strong>
+                                    {task.details}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
                         ))}
                       </tbody>
                     </table>
