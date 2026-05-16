@@ -59,6 +59,7 @@ export default function Home() {
 
   const isSuperuser = user?.publicMetadata?.isSuperuser === true
   const isAdmin = isSuperuser || membership?.role === 'org:admin'
+  const userDisplayName = user?.fullName || user?.firstName || user?.username || 'Unknown User'
   const [dataLoading, setDataLoading] = useState(true)
   const [dataError, setDataError] = useState(null)
 
@@ -100,6 +101,18 @@ export default function Home() {
       .slice()
       .sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime())
   ), [selectedDateNotes])
+
+  const myAssignedTasks = useMemo(() => {
+    const tasks = []
+    Object.entries(workByDate).forEach(([dateKey, dailyTasks]) => {
+      dailyTasks.forEach(task => {
+        if (!task.completed && task.assignee === userDisplayName) {
+          tasks.push({ ...task, dateKey })
+        }
+      })
+    })
+    return tasks.sort((a, b) => new Date(a.dateKey).getTime() - new Date(b.dateKey).getTime())
+  }, [workByDate, userDisplayName])
 
   // ── Load all data on mount (once user is available) ───────────────────
   useEffect(() => {
@@ -243,11 +256,12 @@ export default function Home() {
 
   const handleToggleTask = useCallback(async (task) => {
     const newCompleted = !task.completed
+    const targetDateKey = task.dateKey || selectedDateKey
 
     setWorkByDate((prev) => {
       const copy = { ...prev }
-      if (copy[selectedDateKey]) {
-        copy[selectedDateKey] = copy[selectedDateKey].map((t) =>
+      if (copy[targetDateKey]) {
+        copy[targetDateKey] = copy[targetDateKey].map((t) =>
           t.id === task.id ? { ...t, completed: newCompleted } : t
         )
       }
@@ -255,17 +269,18 @@ export default function Home() {
     })
 
     try {
-      await db.updateTask(task.id, newCompleted)
+      await db.updateTask(task.id, { completed: newCompleted })
     } catch (err) {
       console.error('Failed to update task:', err)
     }
   }, [selectedDateKey])
 
   const handleDeleteTask = useCallback(async (task) => {
+    const targetDateKey = task.dateKey || selectedDateKey
     setWorkByDate((prev) => {
       const copy = { ...prev }
-      if (copy[selectedDateKey]) {
-        copy[selectedDateKey] = copy[selectedDateKey].filter((t) => t.id !== task.id)
+      if (copy[targetDateKey]) {
+        copy[targetDateKey] = copy[targetDateKey].filter((t) => t.id !== task.id)
       }
       return copy
     })
@@ -412,6 +427,47 @@ export default function Home() {
               onToggleAssignee={handleToggleAssignee}
               isAdmin={isAdmin}
             />
+
+            <div className="card">
+              <div className="calendar-feature-head">
+                <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  My Assigned Tasks
+                </h3>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+                {myAssignedTasks.length > 0 ? (
+                  myAssignedTasks.map(task => (
+                    <div key={task.id} style={{
+                      display: 'flex', alignItems: 'flex-start', gap: '12px',
+                      padding: '10px',
+                      background: 'rgba(255,255,255,0.03)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255,255,255,0.05)'
+                    }}>
+                      <div style={{ marginTop: '2px' }}>
+                        <input
+                          type="checkbox"
+                          checked={task.completed || false}
+                          onChange={() => handleToggleTask(task)}
+                          style={{ cursor: 'pointer', accentColor: '#e2b340' }}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '11px', color: 'var(--fg-500)', marginBottom: '4px' }}>
+                          {formatTimestamp(task.dateKey, task.time)}
+                          {task.team && ` • ${task.team}`}
+                        </div>
+                        <div style={{ fontSize: '13px', color: 'var(--fg-100)' }}>
+                          {task.task}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="muted" style={{ fontSize: '12px', margin: 0 }}>No pending tasks assigned to you.</p>
+                )}
+              </div>
+            </div>
           </aside>
 
           <section className="center-calendar-zone">

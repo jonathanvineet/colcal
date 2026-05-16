@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useUser, UserButton } from '@clerk/nextjs'
+import { useUser, UserButton, useOrganization } from '@clerk/nextjs'
 import * as db from '@/lib/db'
 
 function formatTimestamp(dateKey, time) {
@@ -12,11 +12,21 @@ function formatTimestamp(dateKey, time) {
 }
 
 export default function TasksExplorerPage() {
-  const { user, isLoaded } = useUser()
+  const { user, isLoaded: userLoaded } = useUser()
+  const { membership, isLoaded: orgLoaded } = useOrganization()
+
+  const isSuperuser = user?.publicMetadata?.isSuperuser === true
+  const isAdmin = isSuperuser || membership?.role === 'org:admin'
+  const userDisplayName = user?.fullName || user?.firstName || user?.username || 'Unknown User'
+
   const [dataLoading, setDataLoading] = useState(true)
   const [teams, setTeams] = useState([])
   const [tasksByDate, setTasksByDate] = useState({})
+  const [membersByTeam, setMembersByTeam] = useState({})
   const [expandedTeam, setExpandedTeam] = useState(null)
+  
+  const [editingTaskId, setEditingTaskId] = useState(null)
+  const [editForm, setEditForm] = useState({ task: '', assignee: '' })
 
   useEffect(() => {
     if (!user?.id) return
@@ -25,14 +35,16 @@ export default function TasksExplorerPage() {
     async function load() {
       setDataLoading(true)
       try {
-        const [fetchedTeams, fetchedTasks] = await Promise.all([
+        const [fetchedTeams, fetchedTasks, fetchedMembers] = await Promise.all([
           db.fetchTeams(),
-          db.fetchTasks()
+          db.fetchTasks(),
+          db.fetchMembers()
         ])
         if (!cancelled) {
           // Ensure General is always an option at the top
           setTeams([{ name: 'General', color: '#64748b' }, ...fetchedTeams])
           setTasksByDate(fetchedTasks)
+          setMembersByTeam(fetchedMembers)
         }
       } catch (err) {
         console.error('Failed to load tasks:', err)
@@ -60,7 +72,7 @@ export default function TasksExplorerPage() {
     })
     
     try {
-      await db.updateTask(task.id, newCompleted)
+      await db.updateTask(task.id, { completed: newCompleted })
     } catch (err) {
       console.error('Failed to update task:', err)
     }
@@ -79,6 +91,39 @@ export default function TasksExplorerPage() {
       await db.deleteTask(task.id)
     } catch (err) {
       console.error('Failed to delete task:', err)
+    }
+  }
+
+  const startEdit = (task) => {
+    setEditingTaskId(task.id)
+    setEditForm({ task: task.task, assignee: task.assignee || '' })
+  }
+
+  const cancelEdit = () => {
+    setEditingTaskId(null)
+    setEditForm({ task: '', assignee: '' })
+  }
+
+  const saveEdit = async (task) => {
+    const updatedTask = { ...task, task: editForm.task, assignee: editForm.assignee }
+    
+    // Optimistic UI
+    setTasksByDate(prev => {
+      const copy = { ...prev }
+      if (copy[task.dateKey]) {
+        copy[task.dateKey] = copy[task.dateKey].map(t => 
+          t.id === task.id ? updatedTask : t
+        )
+      }
+      return copy
+    })
+    
+    setEditingTaskId(null)
+    
+    try {
+      await db.updateTask(task.id, { task: editForm.task, assignee: editForm.assignee })
+    } catch (err) {
+      console.error('Failed to update task:', err)
     }
   }
 
@@ -103,7 +148,7 @@ export default function TasksExplorerPage() {
     return map
   }, [teams, tasksByDate])
 
-  if (!isLoaded) {
+  if (!userLoaded || !orgLoaded) {
     return (
       <div style={{
         display: 'flex', justifyContent: 'center', alignItems: 'center',
@@ -216,36 +261,74 @@ export default function TasksExplorerPage() {
                               <input
                                 type="checkbox"
                                 checked={task.completed || false}
+                                disabled={!isAdmin && task.assignee !== userDisplayName}
                                 onChange={() => handleToggleTask(task)}
                                 style={{
-                                  cursor: 'pointer',
+                                  cursor: (!isAdmin && task.assignee !== userDisplayName) ? 'not-allowed' : 'pointer',
                                   width: '18px',
                                   height: '18px',
-                                  accentColor: team.color
+                                  accentColor: team.color,
+                                  opacity: (!isAdmin && task.assignee !== userDisplayName) ? 0.5 : 1
                                 }}
                               />
                             </div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: '12px', color: 'var(--fg-500)', marginBottom: '4px' }}>
-                                {formatTimestamp(task.dateKey, task.time)}
-                                {task.assignee && ` • Assigned to: ${task.assignee}`}
+                            
+                            {editingTaskId === task.id ? (
+                              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <input 
+                                  value={editForm.task}
+                                  onChange={e => setEditForm({...editForm, task: e.target.value})}
+                                  style={{ padding: '8px', borderRadius: '4px', border: '1px solid var(--line-600)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
+                                />
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                  <select
+                                    value={editForm.assignee}
+                                    onChange={e => setEditForm({...editForm, assignee: e.target.value})}
+                                    style={{ padding: '6px', borderRadius: '4px', border: '1px solid var(--line-600)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
+                                  >
+                                    <option value="">Unassigned</option>
+                                    {(membersByTeam[team.name] || []).map(m => (
+                                      <option key={m} value={m}>{m}</option>
+                                    ))}
+                                  </select>
+                                  <button onClick={() => saveEdit(task)} className="task-add-submit" style={{ padding: '4px 12px', minHeight: 'auto' }}>Save</button>
+                                  <button onClick={cancelEdit} className="member-remove-btn" style={{ width: 'auto', padding: '4px 12px', fontSize: '12px' }}>Cancel</button>
+                                </div>
                               </div>
-                              <div style={{ 
-                                fontSize: '15px', 
-                                color: 'var(--fg-100)',
-                                textDecoration: task.completed ? 'line-through' : 'none'
-                              }}>
-                                {task.task}
-                              </div>
-                            </div>
-                            <button 
-                              onClick={() => handleDeleteTask(task)} 
-                              className="member-remove-btn" 
-                              title="Delete Task" 
-                              style={{ alignSelf: 'center', marginLeft: 'auto', flexShrink: 0 }}
-                            >
-                              &times;
-                            </button>
+                            ) : (
+                              <>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: '12px', color: 'var(--fg-500)', marginBottom: '4px' }}>
+                                    {formatTimestamp(task.dateKey, task.time)}
+                                    {task.assignee && ` • Assigned to: ${task.assignee}`}
+                                  </div>
+                                  <div style={{ 
+                                    fontSize: '15px', 
+                                    color: 'var(--fg-100)',
+                                    textDecoration: task.completed ? 'line-through' : 'none'
+                                  }}>
+                                    {task.task}
+                                  </div>
+                                </div>
+                                {isAdmin && (
+                                  <div style={{ display: 'flex', gap: '8px', alignSelf: 'center', marginLeft: 'auto', flexShrink: 0 }}>
+                                    <button 
+                                      onClick={() => startEdit(task)} 
+                                      style={{ background: 'transparent', border: '1px solid var(--line-600)', color: 'var(--fg-300)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}
+                                    >
+                                      Edit
+                                    </button>
+                                    <button 
+                                      onClick={() => handleDeleteTask(task)} 
+                                      className="member-remove-btn" 
+                                      title="Delete Task" 
+                                    >
+                                      &times;
+                                    </button>
+                                  </div>
+                                )}
+                              </>
+                            )}
                           </div>
                         ))}
                       </div>

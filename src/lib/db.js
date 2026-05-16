@@ -162,12 +162,12 @@ export async function saveTask(dateKey, task) {
   return { id: data.id, time: data.time, task: data.task, team: data.team, completed: data.completed, assignee: data.assignee }
 }
 
-export async function updateTask(taskId, completed) {
+export async function updateTask(taskId, updates) {
   const { data } = await apiFetch('/api/db/tasks', {
     method: 'PUT',
     body: JSON.stringify({
       id: taskId,
-      completed,
+      ...updates,
     }),
   })
   return data

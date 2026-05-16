@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useUser, UserButton } from '@clerk/nextjs'
+import { useUser, UserButton, useOrganization } from '@clerk/nextjs'
 import * as db from '@/lib/db'
 
 function formatDateKey(dateKey) {
@@ -11,12 +11,24 @@ function formatDateKey(dateKey) {
 }
 
 export default function MemberReportPage() {
-  const { user, isLoaded } = useUser()
+  const { user, isLoaded: userLoaded } = useUser()
+  const { membership, isLoaded: orgLoaded } = useOrganization()
+
+  const isSuperuser = user?.publicMetadata?.isSuperuser === true
+  const isAdmin = isSuperuser || membership?.role === 'org:admin'
+  const userDisplayName = user?.fullName || user?.firstName || user?.username || 'Unknown User'
+
   const [dataLoading, setDataLoading] = useState(true)
   const [allMembers, setAllMembers] = useState([])
   const [tasksByDate, setTasksByDate] = useState({})
   
   const [selectedMember, setSelectedMember] = useState('')
+
+  useEffect(() => {
+    if (!isAdmin && userDisplayName) {
+      setSelectedMember(userDisplayName)
+    }
+  }, [isAdmin, userDisplayName])
 
   useEffect(() => {
     if (!user?.id) return
@@ -75,7 +87,7 @@ export default function MemberReportPage() {
     window.print()
   }
 
-  if (!isLoaded) {
+  if (!userLoaded || !orgLoaded) {
     return (
       <div className="no-print" style={{
         display: 'flex', justifyContent: 'center', alignItems: 'center',
@@ -116,27 +128,35 @@ export default function MemberReportPage() {
         </div>
 
         <div className="card no-print" style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <div style={{ flex: 1 }}>
-            <label style={{ display: 'block', fontSize: '13px', color: 'var(--fg-300)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Select Team Member
-            </label>
-            <select
-              value={selectedMember}
-              onChange={(e) => setSelectedMember(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '1px solid var(--line-600)',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                color: 'white',
-                fontSize: '15px'
-              }}
-            >
-              <option value="">-- Choose a member --</option>
-              {allMembers.map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
+          {isAdmin ? (
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '13px', color: 'var(--fg-300)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Select Team Member
+              </label>
+              <select
+                value={selectedMember}
+                onChange={(e) => setSelectedMember(e.target.value)}
+                className="report-select"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '15px'
+                }}
+              >
+                <option value="">-- Choose a member --</option>
+                {allMembers.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', fontSize: '13px', color: 'var(--fg-300)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Viewing Your Report
+              </label>
+              <div style={{ fontSize: '16px', color: 'var(--fg-100)', fontWeight: 500 }}>
+                {userDisplayName}
+              </div>
+            </div>
+          )}
           {selectedMember && (
             <button onClick={handlePrint} style={{ marginTop: '24px', minWidth: '140px', background: '#f97316' }}>
               Print / Save PDF

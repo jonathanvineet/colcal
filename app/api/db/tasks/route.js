@@ -51,15 +51,22 @@ export async function PUT(request) {
   const authData = await getEffectiveAuth(request.url)
   if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { id, completed } = await request.json()
+  const body = await request.json()
+  const { id, completed, task, assignee, team } = body
   if (!id) {
     return NextResponse.json({ error: 'id is required' }, { status: 400 })
   }
 
+  const updates = {}
+  if (completed !== undefined) updates.completed = !!completed
+  if (task !== undefined) updates.task = task
+  if (assignee !== undefined) updates.assignee = assignee === '' ? null : assignee
+  if (team !== undefined) updates.team = team
+
   const supabase = createServerSupabaseClient()
   let query = supabase
     .from('tasks')
-    .update({ completed: !!completed })
+    .update(updates)
     .eq('id', id)
 
   query = applyAuthFilter(query, authData)
