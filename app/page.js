@@ -8,6 +8,7 @@ import YourTeamsCard from '@/components/YourTeamsCard'
 import TeamMembersCard from '@/components/TeamMembersCard'
 import * as db from '@/lib/db'
 import { UploadButton } from '@/utils/uploadthing'
+import imageCompression from 'browser-image-compression'
 
 const Calendar = dynamic(() => import('@/components/Calendar'), {
   ssr: false,
@@ -766,6 +767,29 @@ export default function Home() {
               <div>
                 <UploadButton
                   endpoint="taskAttachment"
+                  onBeforeUploadBegin={async (files) => {
+                    const compressedFiles = await Promise.all(
+                      files.map(async (file) => {
+                        if (!file.type.startsWith('image/')) return file;
+                        try {
+                          const options = {
+                            maxSizeMB: 1,
+                            maxWidthOrHeight: 1920,
+                            useWebWorker: true,
+                          };
+                          const compressedBlob = await imageCompression(file, options);
+                          return new File([compressedBlob], file.name, {
+                            type: file.type,
+                            lastModified: Date.now(),
+                          });
+                        } catch (error) {
+                          console.error("Compression error:", error);
+                          return file;
+                        }
+                      })
+                    );
+                    return compressedFiles;
+                  }}
                   onClientUploadComplete={(res) => {
                     if (res && res.length > 0) {
                       const fileUrl = res[0].url;

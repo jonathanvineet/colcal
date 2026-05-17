@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useUser, UserButton, useOrganization } from '@clerk/nextjs'
 import * as db from '@/lib/db'
 import { UploadButton } from '@/utils/uploadthing'
+import imageCompression from 'browser-image-compression'
 
 function formatTimestamp(dateKey, time) {
   const date = new Date(`${dateKey}T00:00:00`)
@@ -457,6 +458,29 @@ export default function TasksExplorerPage() {
                   {canEdit && (
                     <UploadButton
                       endpoint="taskAttachment"
+                      onBeforeUploadBegin={async (files) => {
+                        const compressedFiles = await Promise.all(
+                          files.map(async (file) => {
+                            if (!file.type.startsWith('image/')) return file;
+                            try {
+                              const options = {
+                                maxSizeMB: 1,
+                                maxWidthOrHeight: 1920,
+                                useWebWorker: true,
+                              };
+                              const compressedBlob = await imageCompression(file, options);
+                              return new File([compressedBlob], file.name, {
+                                type: file.type,
+                                lastModified: Date.now(),
+                              });
+                            } catch (error) {
+                              console.error("Compression error:", error);
+                              return file;
+                            }
+                          })
+                        );
+                        return compressedFiles;
+                      }}
                       onClientUploadComplete={(res) => {
                         if (res && res.length > 0) {
                           const fileUrl = res[0].url;
