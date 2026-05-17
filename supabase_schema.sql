@@ -46,6 +46,8 @@ create table if not exists tasks (
   team text not null default 'General',
   completed boolean not null default false,
   assignee text,
+  details text,
+  attachments jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
 alter table tasks enable row level security;

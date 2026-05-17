@@ -32,27 +32,31 @@ export default function TasksExplorerPage() {
 
   const [activeTaskForDetails, setActiveTaskForDetails] = useState(null)
   const [detailsDraft, setDetailsDraft] = useState('')
+  const [attachmentsDraft, setAttachmentsDraft] = useState([])
 
   const handleOpenDetails = (task) => {
     setActiveTaskForDetails(task)
     setDetailsDraft(task.details || '')
+    setAttachmentsDraft(task.attachments || [])
   }
 
   const handleCloseDetails = () => {
     setActiveTaskForDetails(null)
     setDetailsDraft('')
+    setAttachmentsDraft([])
   }
 
   const handleSaveDetails = async () => {
     if (!activeTaskForDetails) return
     const task = activeTaskForDetails
     const newDetails = detailsDraft
+    const newAttachments = attachmentsDraft
 
     setTasksByDate(prev => {
       const copy = { ...prev }
       if (copy[task.dateKey]) {
         copy[task.dateKey] = copy[task.dateKey].map(t => 
-          t.id === task.id ? { ...t, details: newDetails } : t
+          t.id === task.id ? { ...t, details: newDetails, attachments: newAttachments } : t
         )
       }
       return copy
@@ -61,7 +65,7 @@ export default function TasksExplorerPage() {
     handleCloseDetails()
 
     try {
-      await db.updateTask(task.id, { details: newDetails })
+      await db.updateTask(task.id, { details: newDetails, attachments: newAttachments })
     } catch (err) {
       console.error('Failed to update task details:', err)
     }
@@ -448,6 +452,64 @@ export default function TasksExplorerPage() {
                 }}
               />
 
+              {/* Attachments Gallery */}
+              {attachmentsDraft.length > 0 && (
+                <div style={{
+                  padding: '16px 24px',
+                  borderTop: '1px solid var(--line-600)',
+                  backgroundColor: 'var(--bg-900)',
+                  display: 'flex', gap: '12px', flexWrap: 'wrap'
+                }}>
+                  {attachmentsDraft.map((att, i) => (
+                    <div key={att.fileKey || i} style={{
+                      position: 'relative',
+                      width: '100px', height: '100px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--line-600)',
+                      overflow: 'hidden',
+                      backgroundColor: 'var(--bg-800)'
+                    }}>
+                      <a href={att.ufsUrl || att.url} target="_blank" rel="noreferrer" style={{ display: 'block', width: '100%', height: '100%' }}>
+                        {att.name?.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                          <img src={att.ufsUrl || att.url} alt={att.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '8px', color: 'var(--fg-300)', textAlign: 'center' }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                            <span style={{ fontSize: '10px', marginTop: '4px', wordBreak: 'break-all', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{att.name}</span>
+                          </div>
+                        )}
+                      </a>
+                      {canEdit && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            if (confirm('Remove this attachment?')) {
+                              if (att.fileKey) {
+                                try {
+                                  await fetch('/api/uploadthing/delete', { method: 'POST', body: JSON.stringify({ fileKey: att.fileKey }) });
+                                } catch (err) {
+                                  console.error(err);
+                                }
+                              }
+                              setAttachmentsDraft(prev => prev.filter((_, idx) => idx !== i));
+                            }
+                          }}
+                          style={{
+                            position: 'absolute', top: '4px', right: '4px',
+                            width: '20px', height: '20px', borderRadius: '50%',
+                            backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff',
+                            border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', fontSize: '14px', lineHeight: '1'
+                          }}
+                          title="Remove Attachment"
+                        >&times;</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Footer */}
               <div style={{
                 padding: '16px 24px', borderTop: '1px solid var(--line-600)',
@@ -483,9 +545,15 @@ export default function TasksExplorerPage() {
                       }}
                       onClientUploadComplete={(res) => {
                         if (res && res.length > 0) {
-                          const fileUrl = res[0].url;
-                          const fileName = res[0].name;
-                          setDetailsDraft(prev => prev + `\n\n[Attachment: ${fileName}](${fileUrl})`);
+                          setAttachmentsDraft(prev => [
+                            ...prev,
+                            ...res.map(f => ({
+                              name: f.name,
+                              ufsUrl: f.ufsUrl || f.serverData?.url || f.url,
+                              fileKey: f.key || f.fileKey,
+                              size: f.size
+                            }))
+                          ]);
                         }
                       }}
                       onUploadError={(error) => {
