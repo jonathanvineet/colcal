@@ -9,6 +9,7 @@ import TeamMembersCard from '@/components/TeamMembersCard'
 import * as db from '@/lib/db'
 import { UploadButton } from '@/utils/uploadthing'
 import imageCompression from 'browser-image-compression'
+import RichTextEditor from '@/components/RichTextEditor'
 
 const Calendar = dynamic(() => import('@/components/Calendar'), {
   ssr: false,
@@ -49,6 +50,50 @@ function formatTimestamp(isoString) {
     hour: 'numeric',
     minute: '2-digit'
   })
+}
+
+function levenshteinDistance(a, b) {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+  const matrix = [];
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+        );
+      }
+    }
+  }
+  return matrix[b.length][a.length];
+}
+
+function isAssigneeMatch(assigneeStr, targetName) {
+  if (!assigneeStr || !targetName) return false;
+  const target = targetName.toLowerCase();
+  // Split by commas, ampersands, or slashes, then trim
+  const assignees = assigneeStr.split(/[,&/]+/).map(s => s.trim().toLowerCase());
+  
+  for (const a of assignees) {
+    // Exact match or simple substring match (e.g., "John" inside "John Doe")
+    if (a === target || a.includes(target) || target.includes(a)) return true;
+    
+    // Fuzzy match for minor typos (allow up to 2 character differences if name is long enough)
+    if (a.length > 4 && target.length > 4) {
+      const distance = levenshteinDistance(a, target);
+      if (distance <= 2) return true;
+    }
+  }
+  return false;
 }
 
 export default function Home() {
@@ -150,7 +195,7 @@ export default function Home() {
     const tasks = []
     Object.entries(workByDate).forEach(([dateKey, dailyTasks]) => {
       dailyTasks.forEach(task => {
-        if (!task.completed && task.assignee === userDisplayName) {
+        if (!task.completed && isAssigneeMatch(task.assignee, userDisplayName)) {
           tasks.push({ ...task, dateKey })
         }
       })
@@ -272,29 +317,105 @@ export default function Home() {
   // ── Task handlers ─────────────────────────────────────────────────────
   async function handleAddTask(event) {
     event.preventDefault()
-    const trimmedTask = newTaskText.trim()
-    if (!trimmedTask) return
-
-    const assigneeList = [...selectedAssignees]
-    const taskPayload = {
-      time: 'Anytime',
-      task: trimmedTask,
-      team: activeTeam || 'Unassigned',
-      assignee: assigneeList.length > 0 ? assigneeList.join(', ') : null,
-    }
+    const trimmedTaskText = newTaskText.trim()
+    if (!trimmedTaskText) return
 
     setNewTaskText('')
     setSelectedAssignees(new Set())
 
+    const assigneeList = [...selectedAssignees]
+    const defaultAssignee = assigneeList.length > 0 ? assigneeList.join(', ') : null
+
+    const lines = trimmedTaskText.split('\n').map(l => l.trim()).filter(Boolean);
+    const newTasksToSave = [];
+    let currentHeader = '';
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      // Check for tabular data (at least 2 tabs)
+      const tabCount = (line.match(/\t/g) || []).length;
+      if (tabCount >= 2) {
+        const parts = line.split('\t').map(p => p.trim());
+        let taskIndex = 0;
+        // If first column is just a number/index, shift columns by 1
+        if (/^\d+$/.test(parts[0])) taskIndex = 1;
+        
+        const taskDetail = parts[taskIndex] || '';
+        if (!taskDetail) continue;
+
+        const responsible = parts[taskIndex + 1] || null;
+        const targetDate = parts[taskIndex + 2] || '';
+        const remarks = parts[taskIndex + 3] || '';
+        
+        let details = [];
+        if (targetDate) details.push(`Target Date: ${targetDate}`);
+        if (remarks) details.push(`Remarks: ${remarks}`);
+        
+        newTasksToSave.push({
+          time: 'Anytime',
+          task: taskDetail,
+          team: activeTeam || 'Unassigned',
+          assignee: responsible || defaultAssignee,
+          details: details.join('\n')
+        });
+        continue;
+      }
+
+      // Check for list items (e.g., "1. task", "a) task", "- task")
+      const listMatch = line.match(/^(\d+[\.\)]|[a-zA-Z][\.\)]|[-•])\s+(.*)/);
+      if (listMatch) {
+        const taskDetail = listMatch[2];
+        newTasksToSave.push({
+          time: 'Anytime',
+          task: taskDetail,
+          team: activeTeam || 'Unassigned',
+          assignee: currentHeader || defaultAssignee,
+          details: ''
+        });
+      } else {
+        // Not a list item. Is it a header?
+        let isHeader = false;
+        if (i + 1 < lines.length) {
+           const nextLine = lines[i+1];
+           const nextListMatch = nextLine.match(/^(\d+[\.\)]|[a-zA-Z][\.\)]|[-•])\s+(.*)/);
+           if (nextListMatch && line.length < 60) {
+             isHeader = true;
+           }
+        }
+        
+        if (!isHeader && line.endsWith(':')) {
+           isHeader = true;
+        }
+
+        if (isHeader) {
+          currentHeader = line.replace(/:$/, '').trim();
+        } else {
+          // Normal sentence or single task
+          newTasksToSave.push({
+            time: 'Anytime',
+            task: line,
+            team: activeTeam || 'Unassigned',
+            assignee: currentHeader || defaultAssignee,
+            details: ''
+          });
+        }
+      }
+    }
+
+    if (newTasksToSave.length === 0) return;
+
     try {
-      // Save to DB first so we get the server-generated id
-      const saved = await db.saveTask(selectedDateKey, taskPayload)
+      // Save all tasks sequentially or in parallel. Promise.all is faster.
+      const savedTasks = await Promise.all(
+        newTasksToSave.map(taskPayload => db.saveTask(selectedDateKey, taskPayload))
+      );
+      
       setWorkByDate((prev) => ({
         ...prev,
-        [selectedDateKey]: [...(prev[selectedDateKey] || []), saved]
-      }))
+        [selectedDateKey]: [...(prev[selectedDateKey] || []), ...savedTasks]
+      }));
     } catch (err) {
-      console.error('Failed to save task:', err)
+      console.error('Failed to save tasks:', err)
     }
   }
 
@@ -607,7 +728,7 @@ export default function Home() {
                   <textarea
                     value={newTaskText}
                     onChange={(event) => setNewTaskText(event.target.value)}
-                    placeholder={`Add task for this date${activeTeam ? ` → ${activeTeam}` : ''}`}
+                    placeholder={`Add task or paste multiple tasks/table data here${activeTeam ? ` → ${activeTeam}` : ''}`}
                     aria-label="Task description"
                     className="task-add-control task-add-input"
                   />
@@ -748,19 +869,13 @@ export default function Home() {
             </div>
             
             {/* Editor Area */}
-            <textarea
-              value={detailsDraft}
-              onChange={(e) => setDetailsDraft(e.target.value)}
-              placeholder="Type your notes, attach proof links, or add extra instructions here..."
-              style={{
-                flex: 1, width: '100%', padding: '32px 48px',
-                border: 'none', outline: 'none',
-                resize: 'none',
-                fontSize: '15px', lineHeight: '1.8',
-                color: 'var(--fg-100)', backgroundColor: 'var(--bg-800)',
-                fontFamily: 'var(--font-sans), system-ui, sans-serif'
-              }}
-            />
+            <div style={{ flex: 1, minHeight: 0, backgroundColor: 'var(--bg-800)' }}>
+              <RichTextEditor
+                value={detailsDraft}
+                onChange={setDetailsDraft}
+                placeholder="Type your notes, paste tables, or add extra instructions here..."
+              />
+            </div>
 
             {/* Attachments Gallery */}
             {attachmentsDraft.length > 0 && (
