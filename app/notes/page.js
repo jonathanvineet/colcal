@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useUser, UserButton } from '@clerk/nextjs'
 import NotesExplorerCard from '@/components/NotesExplorerCard'
 import { fetchNotes } from '@/lib/db'
+import useSWR from 'swr'
+import Skeleton from '@/components/Skeleton'
 
 const NOTES_PAGE_SIZE = 15
 
@@ -44,8 +46,13 @@ function formatTimestamp(isoString) {
 
 export default function NotesExplorerPage() {
   const { user, isLoaded } = useUser()
+  const { data: dbData, isLoading: swrLoading, error: swrError } = useSWR(user?.id ? 'notes' : null, fetchNotes, {
+    revalidateOnFocus: false,
+  })
+
+  const notesLoading = swrLoading && !dbData
+
   const [notesByDate, setNotesByDate] = useState({})
-  const [notesLoading, setNotesLoading] = useState(true)
   const [notesQuery, setNotesQuery] = useState('')
   const [debouncedNotesQuery, setDebouncedNotesQuery] = useState('')
   const [notesDateFrom, setNotesDateFrom] = useState('')
@@ -57,26 +64,12 @@ export default function NotesExplorerPage() {
   const [previewEntry, setPreviewEntry] = useState(null)
 
   // Load notes from DB when user is available
+  // Sync notes from SWR to state
   useEffect(() => {
-    if (!user?.id) return
-    let cancelled = false
-
-    setNotesLoading(true)
-    fetchNotes()
-      .then((data) => {
-        if (!cancelled) {
-          setNotesByDate(data)
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to load notes:', err)
-      })
-      .finally(() => {
-        if (!cancelled) setNotesLoading(false)
-      })
-
-    return () => { cancelled = true }
-  }, [user?.id])
+    if (dbData) {
+      setNotesByDate(dbData)
+    }
+  }, [dbData])
 
   const allNotes = useMemo(() => (
     Object.entries(notesByDate)
@@ -179,32 +172,49 @@ export default function NotesExplorerPage() {
     setPreviewEntry({ dateKey, text })
   }
 
-  if (!isLoaded) {
+  if (!isLoaded || (notesLoading && !dbData)) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
-        color: 'white',
-      }}>
-        Loading...
+      <div className="home-page notes-page">
+        <div className="header-bar">
+          <h1>Colcal</h1>
+        </div>
+        <div className="home-container notes-page-container">
+          <div className="card notes-page-title-card">
+            <div>
+              <h2 style={{ margin: '0 0 8px 0' }}>Notes Explorer</h2>
+              <Skeleton width="300px" height="15px" />
+            </div>
+            <Skeleton width="120px" height="34px" />
+          </div>
+          <div className="card">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Skeleton width="100%" height="34px" />
+                <Skeleton width="120px" height="34px" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                <Skeleton width="100%" height="34px" />
+                <Skeleton width="100%" height="34px" />
+                <Skeleton width="100%" height="34px" />
+                <Skeleton width="100%" height="34px" />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <Skeleton width="100%" height="60px" />
+                <Skeleton width="100%" height="60px" />
+                <Skeleton width="100%" height="60px" />
+                <Skeleton width="100%" height="60px" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
-  if (notesLoading) {
+  if (swrError) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
-        color: 'white',
-      }}>
-        Loading notes…
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--brand)' }}>
+        Failed to load notes.
       </div>
     )
   }

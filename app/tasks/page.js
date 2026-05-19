@@ -6,6 +6,17 @@ import { useUser, UserButton, useOrganization } from '@clerk/nextjs'
 import * as db from '@/lib/db'
 import { UploadButton } from '@/utils/uploadthing'
 import imageCompression from 'browser-image-compression'
+import useSWR from 'swr'
+import Skeleton from '@/components/Skeleton'
+
+const fetchTasksData = async () => {
+  const [fetchedTeams, fetchedTasks, fetchedMembers] = await Promise.all([
+    db.fetchTeams(),
+    db.fetchTasks(),
+    db.fetchMembers()
+  ])
+  return { fetchedTeams, fetchedTasks, fetchedMembers }
+}
 
 function formatTimestamp(dateKey, time) {
   const date = new Date(`${dateKey}T00:00:00`)
@@ -21,7 +32,12 @@ export default function TasksExplorerPage() {
   const isAdmin = isSuperuser || membership?.role === 'org:admin'
   const userDisplayName = user?.fullName || user?.firstName || user?.username || 'Unknown User'
 
-  const [dataLoading, setDataLoading] = useState(true)
+  const { data: dbData, isLoading: swrLoading, error: swrError } = useSWR(user?.id ? 'tasks' : null, fetchTasksData, {
+    revalidateOnFocus: false,
+  })
+
+  const dataLoading = swrLoading && !dbData
+
   const [teams, setTeams] = useState([])
   const [tasksByDate, setTasksByDate] = useState({})
   const [membersByTeam, setMembersByTeam] = useState({})
@@ -72,33 +88,12 @@ export default function TasksExplorerPage() {
   }
 
   useEffect(() => {
-    if (!user?.id) return
-    let cancelled = false
-    
-    async function load() {
-      setDataLoading(true)
-      try {
-        const [fetchedTeams, fetchedTasks, fetchedMembers] = await Promise.all([
-          db.fetchTeams(),
-          db.fetchTasks(),
-          db.fetchMembers()
-        ])
-        if (!cancelled) {
-          // Ensure General is always an option at the top
-          setTeams([{ name: 'General', color: '#64748b' }, ...fetchedTeams])
-          setTasksByDate(fetchedTasks)
-          setMembersByTeam(fetchedMembers)
-        }
-      } catch (err) {
-        console.error('Failed to load tasks:', err)
-      } finally {
-        if (!cancelled) setDataLoading(false)
-      }
+    if (dbData) {
+      setTeams([{ name: 'General', color: '#64748b' }, ...dbData.fetchedTeams])
+      setTasksByDate(dbData.fetchedTasks)
+      setMembersByTeam(dbData.fetchedMembers)
     }
-    
-    load()
-    return () => { cancelled = true }
-  }, [user?.id])
+  }, [dbData])
 
   const handleToggleTask = async (task) => {
     const newCompleted = !task.completed
@@ -191,24 +186,34 @@ export default function TasksExplorerPage() {
     return map
   }, [teams, tasksByDate])
 
-  if (!userLoaded || !orgLoaded) {
+  if (!userLoaded || !orgLoaded || (dataLoading && !dbData)) {
     return (
-      <div style={{
-        display: 'flex', justifyContent: 'center', alignItems: 'center',
-        height: '100vh', background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)', color: 'white',
-      }}>
-        Loading...
+      <div className="home-page notes-page">
+        <div className="header-bar">
+          <h1>Colcal</h1>
+        </div>
+        <div className="home-container notes-page-container">
+          <div className="card notes-page-title-card">
+            <div>
+              <h2 style={{ margin: '0 0 8px 0' }}>Tasks Explorer</h2>
+              <Skeleton width="400px" height="15px" />
+            </div>
+            <Skeleton width="120px" height="34px" />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="card" style={{ padding: '20px' }}><Skeleton width="100%" height="40px" /></div>
+            <div className="card" style={{ padding: '20px' }}><Skeleton width="100%" height="40px" /></div>
+            <div className="card" style={{ padding: '20px' }}><Skeleton width="100%" height="40px" /></div>
+          </div>
+        </div>
       </div>
     )
   }
 
-  if (dataLoading) {
+  if (swrError) {
     return (
-      <div style={{
-        display: 'flex', justifyContent: 'center', alignItems: 'center',
-        height: '100vh', background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)', color: 'white',
-      }}>
-        Loading tasks…
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--brand)' }}>
+        Failed to load tasks.
       </div>
     )
   }

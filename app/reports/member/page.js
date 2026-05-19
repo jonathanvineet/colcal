@@ -4,6 +4,16 @@ import { useEffect, useMemo, useState, Fragment } from 'react'
 import Link from 'next/link'
 import { useUser, UserButton, useOrganization } from '@clerk/nextjs'
 import * as db from '@/lib/db'
+import useSWR from 'swr'
+import Skeleton from '@/components/Skeleton'
+
+const fetchReportData = async () => {
+  const [fetchedMembers, fetchedTasks] = await Promise.all([
+    db.fetchMembers(),
+    db.fetchTasks()
+  ])
+  return { fetchedMembers, fetchedTasks }
+}
 
 function formatDateKey(dateKey) {
   const date = new Date(`${dateKey}T00:00:00`)
@@ -18,7 +28,12 @@ export default function MemberReportPage() {
   const isAdmin = isSuperuser || membership?.role === 'org:admin'
   const userDisplayName = user?.fullName || user?.firstName || user?.username || 'Unknown User'
 
-  const [dataLoading, setDataLoading] = useState(true)
+  const { data: dbData, isLoading: swrLoading, error: swrError } = useSWR(user?.id ? 'member-report' : null, fetchReportData, {
+    revalidateOnFocus: false,
+  })
+
+  const dataLoading = swrLoading && !dbData
+
   const [allMembers, setAllMembers] = useState([])
   const [tasksByDate, setTasksByDate] = useState({})
   
@@ -31,36 +46,15 @@ export default function MemberReportPage() {
   }, [isAdmin, userDisplayName])
 
   useEffect(() => {
-    if (!user?.id) return
-    let cancelled = false
-    
-    async function load() {
-      setDataLoading(true)
-      try {
-        const [fetchedMembers, fetchedTasks] = await Promise.all([
-          db.fetchMembers(),
-          db.fetchTasks()
-        ])
-        if (!cancelled) {
-          // Extract unique member names
-          const uniqueMembers = new Set()
-          Object.values(fetchedMembers).forEach(teamMembers => {
-            teamMembers.forEach(m => uniqueMembers.add(m))
-          })
-          setAllMembers(Array.from(uniqueMembers).sort())
-          
-          setTasksByDate(fetchedTasks)
-        }
-      } catch (err) {
-        console.error('Failed to load data:', err)
-      } finally {
-        if (!cancelled) setDataLoading(false)
-      }
+    if (dbData) {
+      const uniqueMembers = new Set()
+      Object.values(dbData.fetchedMembers).forEach(teamMembers => {
+        teamMembers.forEach(m => uniqueMembers.add(m))
+      })
+      setAllMembers(Array.from(uniqueMembers).sort())
+      setTasksByDate(dbData.fetchedTasks)
     }
-    
-    load()
-    return () => { cancelled = true }
-  }, [user?.id])
+  }, [dbData])
 
   const memberTasksByDate = useMemo(() => {
     if (!selectedMember) return {}
@@ -87,24 +81,47 @@ export default function MemberReportPage() {
     window.print()
   }
 
-  if (!userLoaded || !orgLoaded) {
+  if (!userLoaded || !orgLoaded || (dataLoading && !dbData)) {
     return (
-      <div className="no-print" style={{
-        display: 'flex', justifyContent: 'center', alignItems: 'center',
-        height: '100vh', background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)', color: 'white',
-      }}>
-        Loading...
+      <div className="home-page notes-page print-container">
+        <div className="header-bar no-print">
+          <h1>Colcal</h1>
+        </div>
+        <div className="home-container notes-page-container print-content">
+          <div className="card notes-page-title-card no-print">
+            <div>
+              <h2 style={{ margin: '0 0 8px 0' }}>Member Report</h2>
+              <Skeleton width="400px" height="15px" />
+            </div>
+            <Skeleton width="120px" height="34px" />
+          </div>
+          <div className="card no-print" style={{ marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <Skeleton width="150px" height="15px" style={{ marginBottom: '8px' }} />
+              <Skeleton width="100%" height="45px" />
+            </div>
+          </div>
+          <div className="report-paper">
+            <div className="report-header">
+              <Skeleton width="300px" height="32px" style={{ marginBottom: '8px' }} />
+              <Skeleton width="200px" height="20px" style={{ marginBottom: '4px' }} />
+              <Skeleton width="150px" height="15px" />
+            </div>
+            <div className="report-body">
+              <Skeleton width="100%" height="40px" style={{ marginBottom: '10px' }} />
+              <Skeleton width="100%" height="40px" style={{ marginBottom: '10px' }} />
+              <Skeleton width="100%" height="40px" style={{ marginBottom: '10px' }} />
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
-  if (dataLoading) {
+  if (swrError) {
     return (
-      <div className="no-print" style={{
-        display: 'flex', justifyContent: 'center', alignItems: 'center',
-        height: '100vh', background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)', color: 'white',
-      }}>
-        Loading report data…
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--brand)' }}>
+        Failed to load report data.
       </div>
     )
   }

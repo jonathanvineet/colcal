@@ -10,6 +10,18 @@ import * as db from '@/lib/db'
 import { UploadButton } from '@/utils/uploadthing'
 import imageCompression from 'browser-image-compression'
 import RichTextEditor from '@/components/RichTextEditor'
+import useSWR from 'swr'
+import Skeleton from '@/components/Skeleton'
+
+const fetchDashboardData = async () => {
+  const [fetchedTeams, fetchedMembers, fetchedTasks, fetchedNotes] = await Promise.all([
+    db.fetchTeams(),
+    db.fetchMembers(),
+    db.fetchTasks(),
+    db.fetchNotes(),
+  ])
+  return { fetchedTeams, fetchedMembers, fetchedTasks, fetchedNotes }
+}
 
 const Calendar = dynamic(() => import('@/components/Calendar'), {
   ssr: false,
@@ -107,8 +119,13 @@ export default function Home() {
   const isSuperuser = user?.publicMetadata?.isSuperuser === true
   const isAdmin = isSuperuser || membership?.role === 'org:admin'
   const userDisplayName = user?.fullName || user?.firstName || user?.username || 'Unknown User'
-  const [dataLoading, setDataLoading] = useState(true)
-  const [dataError, setDataError] = useState(null)
+
+  const { data: dbData, isLoading: swrLoading, error: swrError } = useSWR(user?.id ? 'dashboard' : null, fetchDashboardData, {
+    revalidateOnFocus: false,
+  })
+
+  const dataLoading = swrLoading && !dbData
+  const dataError = swrError
 
   const [notes, setNotes] = useState('')
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -203,45 +220,16 @@ export default function Home() {
     return tasks.sort((a, b) => new Date(a.dateKey).getTime() - new Date(b.dateKey).getTime())
   }, [workByDate, userDisplayName])
 
-  // ── Load all data on mount (once user is available) ───────────────────
+  // ── Sync data from SWR to local state for optimistic UI ───────────────────
   useEffect(() => {
-    if (!user?.id) return
-
-    let cancelled = false
-
-    async function loadAll() {
-      setDataLoading(true)
-      setDataError(null)
-
-      try {
-        const [fetchedTeams, fetchedMembers, fetchedTasks, fetchedNotes] = await Promise.all([
-          db.fetchTeams(),
-          db.fetchMembers(),
-          db.fetchTasks(),
-          db.fetchNotes(),
-        ])
-
-        if (cancelled) return
-
-        setTeams(fetchedTeams)
-        setActiveTeam(fetchedTeams[0]?.name || null)
-        setMembersByTeam(fetchedMembers)
-
-        setWorkByDate(fetchedTasks)
-        setNotesByDate(fetchedNotes)
-      } catch (err) {
-        if (!cancelled) {
-          setDataError('Failed to load your data. Please refresh the page.')
-          console.error('DB load error:', err)
-        }
-      } finally {
-        if (!cancelled) setDataLoading(false)
-      }
+    if (dbData) {
+      setTeams(dbData.fetchedTeams)
+      setActiveTeam(prev => prev || dbData.fetchedTeams[0]?.name || null)
+      setMembersByTeam(dbData.fetchedMembers)
+      setWorkByDate(dbData.fetchedTasks)
+      setNotesByDate(dbData.fetchedNotes)
     }
-
-    loadAll()
-    return () => { cancelled = true }
-  }, [user?.id])
+  }, [dbData])
 
   // ── Sync notes textarea when selected date changes ────────────────────
   useEffect(() => {
@@ -491,37 +479,34 @@ export default function Home() {
   }
 
   // ── Loading / error states ────────────────────────────────────────────
-  if (!isLoaded) {
+  if (!isLoaded || dataLoading) {
     return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
-        color: 'white',
-        flexDirection: 'column',
-        gap: 12
-      }}>
-        <div style={{ fontSize: 18, fontWeight: 600 }}>Loading...</div>
-      </div>
-    )
-  }
-
-  if (dataLoading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: 'linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%)',
-        color: 'white',
-        flexDirection: 'column',
-        gap: 12
-      }}>
-        <div style={{ fontSize: 18, fontWeight: 600 }}>Loading your workspace…</div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Fetching data from the database</div>
+      <div className="home-page">
+        <div className="header-bar">
+          <h1>Colcal</h1>
+        </div>
+        <div className="home-container">
+          <div className="home-intro-card card">
+            <div className="home-intro-content">
+              <Skeleton width="300px" height="32px" style={{ marginBottom: 16 }} />
+              <Skeleton width="100%" height="20px" style={{ marginBottom: 8 }} />
+              <Skeleton width="80%" height="20px" />
+            </div>
+          </div>
+          <div className="calendar-first-grid">
+            <aside className="left-rail">
+              <Skeleton width="100%" height="200px" />
+              <Skeleton width="100%" height="300px" />
+            </aside>
+            <main className="center-calendar-zone">
+              <Skeleton width="100%" height="600px" />
+            </main>
+            <aside className="right-rail">
+              <Skeleton width="100%" height="300px" />
+              <Skeleton width="100%" height="200px" />
+            </aside>
+          </div>
+        </div>
       </div>
     )
   }
@@ -916,7 +901,27 @@ export default function Home() {
                               console.error(err);
                             }
                           }
-                          setAttachmentsDraft(prev => prev.filter((_, idx) => idx !== i));
+                          const newAttachments = attachmentsDraft.filter((_, idx) => idx !== i);
+                          setAttachmentsDraft(newAttachments);
+                          
+                          // Instantly save to DB so refresh reflects the deletion immediately
+                          if (activeTaskForDetails) {
+                            try {
+                              await db.updateTask(activeTaskForDetails.id, { attachments: newAttachments });
+                              setWorkByDate((prev) => {
+                                const copy = { ...prev };
+                                const targetDateKey = activeTaskForDetails.dateKey || getDateKey(selectedDate);
+                                if (copy[targetDateKey]) {
+                                  copy[targetDateKey] = copy[targetDateKey].map((t) =>
+                                    t.id === activeTaskForDetails.id ? { ...t, attachments: newAttachments } : t
+                                  );
+                                }
+                                return copy;
+                              });
+                            } catch (err) {
+                              console.error('Failed to update DB after attachment deletion:', err);
+                            }
+                          }
                         }
                       }}
                       style={{
@@ -965,17 +970,36 @@ export default function Home() {
                     );
                     return compressedFiles;
                   }}
-                  onClientUploadComplete={(res) => {
+                  onClientUploadComplete={async (res) => {
                     if (res && res.length > 0) {
-                      setAttachmentsDraft(prev => [
-                        ...prev,
-                        ...res.map(f => ({
-                          name: f.name,
-                          ufsUrl: f.ufsUrl || f.serverData?.url || f.url,
-                          fileKey: f.key || f.fileKey,
-                          size: f.size
-                        }))
-                      ]);
+                      const newAtts = res.map(f => ({
+                        name: f.name,
+                        ufsUrl: f.ufsUrl || f.serverData?.url || f.url,
+                        fileKey: f.key || f.fileKey,
+                        size: f.size
+                      }));
+                      
+                      const updatedAttachments = [...attachmentsDraft, ...newAtts];
+                      setAttachmentsDraft(updatedAttachments);
+
+                      // Instantly save to DB so attachments aren't lost if modal is closed without saving
+                      if (activeTaskForDetails) {
+                        try {
+                          await db.updateTask(activeTaskForDetails.id, { attachments: updatedAttachments });
+                          setWorkByDate((prev) => {
+                            const copy = { ...prev };
+                            const targetDateKey = activeTaskForDetails.dateKey || getDateKey(selectedDate);
+                            if (copy[targetDateKey]) {
+                              copy[targetDateKey] = copy[targetDateKey].map((t) =>
+                                t.id === activeTaskForDetails.id ? { ...t, attachments: updatedAttachments } : t
+                              );
+                            }
+                            return copy;
+                          });
+                        } catch (err) {
+                          console.error('Failed to update DB after attachment upload:', err);
+                        }
+                      }
                     }
                   }}
                   onUploadError={(error) => {
