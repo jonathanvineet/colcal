@@ -108,6 +108,13 @@ function isAssigneeMatch(assigneeStr, targetName) {
   return false;
 }
 
+function getInitials(name) {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
 export default function Home() {
   const { user, isLoaded } = useUser()
   const { memberships, membership } = useOrganization({
@@ -127,10 +134,16 @@ export default function Home() {
   const dataLoading = swrLoading && !dbData
   const dataError = swrError
 
-  const [notes, setNotes] = useState('')
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [notesByDate, setNotesByDate] = useState({})
-  const [noteSaveMessage, setNoteSaveMessage] = useState('')
+  const [isAddingNote, setIsAddingNote] = useState(false)
+  const [newNoteDraft, setNewNoteDraft] = useState('')
+  const [newNoteTeam, setNewNoteTeam] = useState('')
+  const [editingNoteId, setEditingNoteId] = useState(null)
+  const [editingNoteDraft, setEditingNoteDraft] = useState('')
+  const [editingNoteTeam, setEditingNoteTeam] = useState('')
+  const [noteFeedbackMsg, setNoteFeedbackMsg] = useState('')
+
   const [teams, setTeams] = useState([])
   const [activeTeam, setActiveTeam] = useState(null)
   const [workByDate, setWorkByDate] = useState({})
@@ -231,11 +244,15 @@ export default function Home() {
     }
   }, [dbData])
 
-  // ── Sync notes textarea when selected date changes ────────────────────
+  // ── Reset note composer / editor states on date change ────────────────────
   useEffect(() => {
-    setNotes(selectedDateLatestNote)
-    setNoteSaveMessage('')
-  }, [selectedDateKey, selectedDateLatestNote])
+    setIsAddingNote(false)
+    setNewNoteDraft('')
+    setEditingNoteId(null)
+    setEditingNoteDraft('')
+    setEditingNoteTeam('')
+    setNoteFeedbackMsg('')
+  }, [selectedDateKey])
 
   // ── Toggle assignee selection ─────────────────────────────────────────
   const handleToggleAssignee = useCallback((name) => {
@@ -446,21 +463,21 @@ export default function Home() {
   }, [selectedDateKey])
 
   // ── Note handlers ─────────────────────────────────────────────────────
-  async function handleSaveNote() {
-    const trimmedNote = notes.trim()
-    if (!trimmedNote) {
-      setNoteSaveMessage('Type a note before saving.')
+  async function handleCreateFreshNote() {
+    const trimmed = newNoteDraft.trim()
+    if (!trimmed) {
+      setNoteFeedbackMsg('Please enter some text for your note.')
       return
     }
 
-    const authorName = user?.fullName || user?.firstName || user?.username || 'Unknown User'
+    const authorName = userDisplayName
     const savedAt = new Date().toISOString()
     const noteEntry = {
-      id: `${selectedDateKey}-${Date.now()}`,
-      text: trimmedNote,
+      id: `${selectedDateKey}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      text: trimmed,
       savedAt,
       authorName,
-      team: activeTeam || 'General'
+      team: newNoteTeam || activeTeam || 'General',
     }
 
     // Optimistically update UI
@@ -468,13 +485,79 @@ export default function Home() {
       const existing = Array.isArray(prev[selectedDateKey]) ? prev[selectedDateKey] : []
       return { ...prev, [selectedDateKey]: [...existing, noteEntry] }
     })
-    setNoteSaveMessage(`Saved by ${authorName} at ${formatTimestamp(savedAt)}.`)
+    setNewNoteDraft('')
+    setIsAddingNote(false)
+    setNoteFeedbackMsg('Note saved!')
+    setTimeout(() => setNoteFeedbackMsg(''), 3000)
 
     try {
       await db.saveNote(selectedDateKey, noteEntry)
     } catch (err) {
-      console.error('Failed to save note:', err)
-      setNoteSaveMessage('Error saving note. Please try again.')
+      console.error('Failed to create note:', err)
+      setNoteFeedbackMsg('Error saving note. Please try again.')
+    }
+  }
+
+  function handleStartEditNote(note) {
+    setEditingNoteId(note.id)
+    setEditingNoteDraft(note.text)
+    setEditingNoteTeam(note.team || 'General')
+  }
+
+  function handleCancelEditNote() {
+    setEditingNoteId(null)
+    setEditingNoteDraft('')
+    setEditingNoteTeam('')
+  }
+
+  async function handleSaveEditNote(noteId) {
+    const trimmed = editingNoteDraft.trim()
+    if (!trimmed) return
+
+    let updatedEntry = null
+    setNotesByDate((prev) => {
+      const existing = Array.isArray(prev[selectedDateKey]) ? prev[selectedDateKey] : []
+      const updated = existing.map((n) => {
+        if (n.id === noteId) {
+          updatedEntry = { ...n, text: trimmed, team: editingNoteTeam }
+          return updatedEntry
+        }
+        return n
+      })
+      return { ...prev, [selectedDateKey]: updated }
+    })
+
+    setEditingNoteId(null)
+    setEditingNoteDraft('')
+    setEditingNoteTeam('')
+    setNoteFeedbackMsg('Note updated!')
+    setTimeout(() => setNoteFeedbackMsg(''), 3000)
+
+    if (updatedEntry) {
+      try {
+        await db.saveNote(selectedDateKey, updatedEntry)
+      } catch (err) {
+        console.error('Failed to update note:', err)
+        setNoteFeedbackMsg('Error updating note.')
+      }
+    }
+  }
+
+  async function handleDeleteNote(noteId) {
+    if (!confirm('Are you sure you want to delete this note?')) return
+
+    setNotesByDate((prev) => {
+      const existing = Array.isArray(prev[selectedDateKey]) ? prev[selectedDateKey] : []
+      return { ...prev, [selectedDateKey]: existing.filter((n) => n.id !== noteId) }
+    })
+    setNoteFeedbackMsg('Note deleted.')
+    setTimeout(() => setNoteFeedbackMsg(''), 3000)
+
+    try {
+      await db.deleteNote(noteId)
+    } catch (err) {
+      console.error('Failed to delete note:', err)
+      setNoteFeedbackMsg('Error deleting note.')
     }
   }
 
@@ -644,6 +727,7 @@ export default function Home() {
                 userId={user?.id}
                 selectedDate={selectedDate}
                 onDateChange={setSelectedDate}
+                notesByDate={notesByDate}
               />
             </div>
           </section>
@@ -790,31 +874,298 @@ export default function Home() {
             </div>
 
             <div className="card">
-              <div className="notes-card-head">
-                <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Notes
-                </h3>
-                <Link href="/notes" className="notes-explorer-link">Open Explorer</Link>
+              <div className="notes-card-head" style={{ marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Notes
+                  </h3>
+                  <span className="notes-count-badge">
+                    {selectedDateSortedNotes.length}
+                  </span>
+                </div>
+                <div className="notes-header-actions">
+                  {!isAddingNote && (
+                    <button
+                      type="button"
+                      className="notes-new-btn"
+                      title="Add Note"
+                      aria-label="Add Note"
+                      onClick={() => {
+                        setIsAddingNote(true)
+                        setNewNoteTeam(activeTeam || 'General')
+                      }}
+                      style={{ width: '28px', height: '28px', padding: 0, justifyContent: 'center', borderRadius: '6px' }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                    </button>
+                  )}
+                  <Link href="/notes" className="notes-explorer-link">Explorer</Link>
+                </div>
               </div>
-              <p className="muted" style={{ margin: '0 0 12px 0' }}>
+
+              <p className="muted" style={{ margin: '0 0 12px 0', fontSize: '13px' }}>
                 Notes for {currentMonth} {toOrdinal(currentDay)}
               </p>
 
-              <div className="notes-text-area-wrapper" style={{ marginTop: 12 }}>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Type notes here... they are saved directly to this date."
-                  className="notes-text-area"
-                />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginTop: '12px' }}>
-                <div style={{ flex: 1, minHeight: '1.5em', fontSize: '13px', color: 'var(--fg-500)', fontFamily: 'var(--font-mono)' }}>
-                  {noteSaveMessage}
+              {noteFeedbackMsg && (
+                <div style={{
+                  marginBottom: 10,
+                  fontSize: 12,
+                  color: 'var(--brand)',
+                  fontFamily: 'var(--font-mono)',
+                  padding: '4px 8px',
+                  background: 'rgba(99, 102, 241, 0.1)',
+                  borderRadius: 4,
+                  border: '1px solid rgba(99, 102, 241, 0.2)'
+                }}>
+                  {noteFeedbackMsg}
                 </div>
-                <button onClick={handleSaveNote} className="task-add-submit" style={{ width: 'auto', padding: '0.5rem 1.5rem' }}>
-                  Save Note
-                </button>
+              )}
+
+              {/* Fresh Note Composer */}
+              {isAddingNote && (
+                <div className="notes-composer">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--fg-200)' }}>
+                      New Note by {userDisplayName}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsAddingNote(false)
+                        setNewNoteDraft('')
+                      }}
+                      style={{ background: 'none', border: 'none', color: 'var(--fg-500)', cursor: 'pointer', fontSize: '16px', lineHeight: 1 }}
+                    >
+                      &times;
+                    </button>
+                  </div>
+
+                  <textarea
+                    value={newNoteDraft}
+                    onChange={(e) => setNewNoteDraft(e.target.value)}
+                    placeholder="Write a fresh note for this date..."
+                    className="notes-composer-textarea"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                        e.preventDefault()
+                        handleCreateFreshNote()
+                      }
+                    }}
+                  />
+
+                  <div className="notes-composer-footer">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--fg-500)' }}>Team:</span>
+                      <select
+                        value={newNoteTeam || activeTeam || 'General'}
+                        onChange={(e) => setNewNoteTeam(e.target.value)}
+                        className="notes-team-select"
+                      >
+                        {teams.length > 0 ? (
+                          teams.map((t) => (
+                            <option key={t.id || t.name} value={t.name}>{t.name}</option>
+                          ))
+                        ) : (
+                          <option value="General">General</option>
+                        )}
+                      </select>
+                    </div>
+
+                    <div className="notes-composer-buttons">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingNote(false)
+                          setNewNoteDraft('')
+                        }}
+                        className="note-action-btn"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCreateFreshNote}
+                        className="notes-new-btn"
+                        style={{ padding: '4px 12px' }}
+                      >
+                        Save Note
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Notes Feed for Selected Date (Max 2 displayed, plus 'See all' link) */}
+              <div className="notes-feed-list">
+                {selectedDateSortedNotes.length > 0 ? (
+                  <>
+                    {selectedDateSortedNotes.slice(0, 2).map((note) => {
+                      const isEditing = editingNoteId === note.id
+                      const teamObj = teams.find((t) => t.name === note.team)
+                      const teamColor = teamObj?.color || '#6366f1'
+
+                      if (isEditing) {
+                        return (
+                          <div key={note.id} className="notes-composer" style={{ margin: 0 }}>
+                            <textarea
+                              value={editingNoteDraft}
+                              onChange={(e) => setEditingNoteDraft(e.target.value)}
+                              className="notes-composer-textarea"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                                  e.preventDefault()
+                                  handleSaveEditNote(note.id)
+                                }
+                              }}
+                            />
+                            <div className="notes-composer-footer">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '11px', color: 'var(--fg-500)' }}>Team:</span>
+                                <select
+                                  value={editingNoteTeam}
+                                  onChange={(e) => setEditingNoteTeam(e.target.value)}
+                                  className="notes-team-select"
+                                >
+                                  {teams.length > 0 ? (
+                                    teams.map((t) => (
+                                      <option key={t.id || t.name} value={t.name}>{t.name}</option>
+                                    ))
+                                  ) : (
+                                    <option value="General">General</option>
+                                  )}
+                                </select>
+                              </div>
+                              <div className="notes-composer-buttons">
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEditNote}
+                                  className="note-action-btn"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveEditNote(note.id)}
+                                  className="notes-new-btn"
+                                  style={{ padding: '4px 12px' }}
+                                >
+                                  Update
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <div key={note.id} className="note-feed-card">
+                          <div className="note-feed-head">
+                            <div className="note-feed-author-group">
+                              <div className="note-author-avatar" title={note.authorName}>
+                                {getInitials(note.authorName)}
+                              </div>
+                              <span className="note-author-name">{note.authorName}</span>
+                              {note.team && (
+                                <span
+                                  className="note-feed-badge"
+                                  style={{
+                                    color: teamColor,
+                                    borderColor: `${teamColor}40`,
+                                    background: `${teamColor}15`
+                                  }}
+                                >
+                                  {note.team}
+                                </span>
+                              )}
+                            </div>
+                            <div className="note-feed-actions">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEditNote(note)}
+                                className="note-action-btn"
+                                title="Edit note"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteNote(note.id)}
+                                className="note-action-btn delete"
+                                title="Delete note"
+                              >
+                                &times;
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="note-feed-body">
+                            {note.text}
+                          </div>
+
+                          <div className="note-feed-time">
+                            {formatTimestamp(note.savedAt)}
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {selectedDateSortedNotes.length > 2 && (
+                      <div style={{ marginTop: '4px', textAlign: 'center' }}>
+                        <Link
+                          href={`/notes?date=${encodeURIComponent(selectedDateKey)}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            fontSize: '12px',
+                            color: 'var(--brand)',
+                            textDecoration: 'none',
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            background: 'rgba(99, 102, 241, 0.08)',
+                            border: '1px solid rgba(99, 102, 241, 0.2)',
+                            fontWeight: 500,
+                            width: '100%',
+                            transition: 'all 0.2s ease',
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.16)'}
+                          onMouseOut={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.08)'}
+                        >
+                          See all {selectedDateSortedNotes.length} notes for this date &rarr;
+                        </Link>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  !isAddingNote && (
+                    <div className="note-feed-empty">
+                      <span>No notes yet for this day.</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAddingNote(true)
+                          setNewNoteTeam(activeTeam || 'General')
+                        }}
+                        className="notes-new-btn"
+                        title="Add Note"
+                        aria-label="Add Note"
+                        style={{ width: '28px', height: '28px', padding: 0, justifyContent: 'center', borderRadius: '6px' }}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="12" y1="5" x2="12" y2="19"></line>
+                          <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                      </button>
+                    </div>
+                  )
+                )}
               </div>
             </div>
           </aside>

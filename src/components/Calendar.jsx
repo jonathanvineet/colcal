@@ -26,7 +26,15 @@ function isSameDay(a, b) {
   )
 }
 
-export default function Calendar({ userId, selectedDate, onDateChange }) {
+function getDateKey(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0')
+  ].join('-')
+}
+
+export default function Calendar({ userId, selectedDate, onDateChange, notesByDate = {} }) {
   const calendarRef = useRef(null)
   const [events, setEvents] = useState([])
   const [eventsLoaded, setEventsLoaded] = useState(false)
@@ -60,7 +68,10 @@ export default function Calendar({ userId, selectedDate, onDateChange }) {
 
     const current = api.getDate()
     if (!isSameDay(current, selectedDate)) {
-      api.gotoDate(selectedDate)
+      const timer = setTimeout(() => {
+        api.gotoDate(selectedDate)
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [selectedDate])
 
@@ -174,6 +185,26 @@ export default function Calendar({ userId, selectedDate, onDateChange }) {
         eventResize={handleEventChange}
         eventClick={handleEventClick}
         dayCellClassNames={(arg) => (isSameDay(arg.date, selectedDate) ? ['is-selected-day'] : [])}
+        dayCellContent={(arg) => {
+          const dateKey = getDateKey(arg.date)
+          const dayNotes = notesByDate[dateKey]
+          const noteCount = Array.isArray(dayNotes) ? dayNotes.length : 0
+
+          return (
+            <div className="fc-daygrid-day-number-wrapper">
+              <span className="fc-daygrid-day-number-text">{arg.dayNumberText}</span>
+              {noteCount > 0 && (
+                <span
+                  className="fc-day-note-badge"
+                  title={`${noteCount} note${noteCount > 1 ? 's' : ''} on this date`}
+                >
+                  <span className="fc-day-note-dot" />
+                  {noteCount > 1 && <span className="fc-day-note-count">{noteCount}</span>}
+                </span>
+              )}
+            </div>
+          )
+        }}
         height="auto"
       />
     </div>
