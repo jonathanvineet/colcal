@@ -524,7 +524,7 @@ export default function Home() {
         gap: 12
       }}>
         <div style={{ fontSize: 18, fontWeight: 600, color: '#f97316' }}>Something went wrong</div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{dataError}</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>{dataError?.message || String(dataError)}</div>
       </div>
     )
   }

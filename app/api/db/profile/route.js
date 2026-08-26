@@ -10,7 +10,12 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const idsParam = searchParams.get('ids')
   
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   if (idsParam) {
     const ids = idsParam.split(',').filter(Boolean)
     const { data, error } = await supabase
@@ -40,7 +45,12 @@ export async function POST(request) {
   const { displayName } = await request.json()
   if (!displayName) return NextResponse.json({ error: 'displayName is required' }, { status: 400 })
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   const { error } = await supabase
     .from('user_profiles')
     .upsert(

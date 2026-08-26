@@ -6,7 +6,12 @@ export async function GET(request) {
   const authData = await getEffectiveAuth(request.url)
   if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   let query = supabase
     .from('calendar_events')
     .select('id, title, start_time, end_time, all_day')
@@ -37,7 +42,12 @@ export async function POST(request) {
     return NextResponse.json({ error: 'id, title, and start are required' }, { status: 400 })
   }
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   const { error } = await supabase
     .from('calendar_events')
     .insert({
@@ -61,7 +71,12 @@ export async function PUT(request) {
   const { id, start, end, allDay } = await request.json()
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   let query = supabase
     .from('calendar_events')
     .update({
@@ -86,7 +101,12 @@ export async function DELETE(request) {
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   let query = supabase
     .from('calendar_events')
     .delete()
