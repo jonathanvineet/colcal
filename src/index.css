@@ -36,6 +36,23 @@ body {
   width: 100%;
 }
 
+/* Global sleek dark scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 body {
   min-height: 100vh;
   background:
@@ -1131,24 +1148,30 @@ textarea:focus {
   font-size: 10px;
 }
 
-/* Calendar Task Events */
+/* Calendar Task Events — compact left-border pill */
+.fc-task-event .fc-event-main {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+/* Strip FullCalendar's default event chrome entirely for task pills */
 .fc-task-event {
-  font-size: 11px !important;
-  font-weight: 500;
+  background: transparent !important;
+  border: none !important;
   border-radius: 4px !important;
-  padding: 1px 4px !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 1px 1px !important;
   cursor: pointer;
-  transition: transform 0.1s ease, filter 0.15s ease;
+  transition: opacity 0.15s ease;
 }
 
 .fc-task-event:hover {
-  filter: brightness(1.15);
-  transform: translateY(-1px);
+  opacity: 0.85;
 }
 
 .fc-task-event.is-task-completed {
-  text-decoration: line-through;
-  opacity: 0.55;
+  opacity: 0.45;
 }
 
 /* Notes Card Header */

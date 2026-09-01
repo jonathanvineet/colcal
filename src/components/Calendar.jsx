@@ -94,16 +94,20 @@ export default function Calendar({
 
         return {
           id: `task-${task.id}`,
-          title: `${task.team ? `[${task.team}] ` : ''}${task.task}${task.assignee ? ` • ${task.assignee}` : ''}`,
+          title: task.task,
           start: dateKey,
           allDay: true,
-          backgroundColor: isCompleted ? 'rgba(255, 255, 255, 0.08)' : `${teamColor}33`,
-          borderColor: isCompleted ? 'rgba(255, 255, 255, 0.2)' : teamColor,
-          textColor: isCompleted ? 'rgba(255, 255, 255, 0.45)' : '#ffffff',
+          backgroundColor: 'transparent',
+          borderColor: 'transparent',
+          textColor: '#ffffff',
           classNames: ['fc-task-event', isCompleted ? 'is-task-completed' : ''],
           extendedProps: {
             isTask: true,
             task,
+            teamColor: isCompleted ? 'rgba(255,255,255,0.2)' : teamColor,
+            teamName: task.team || '',
+            assignee: task.assignee || '',
+            isCompleted,
           },
         }
       })
@@ -261,6 +265,59 @@ export default function Calendar({
                   {noteCount > 1 && <span className="fc-day-note-count">{noteCount}</span>}
                 </span>
               )}
+            </div>
+          )
+        }}
+        eventContent={(arg) => {
+          if (!arg.event.extendedProps?.isTask) return undefined
+          const { teamColor, teamName, assignee, isCompleted, task } = arg.event.extendedProps
+          const initial = assignee ? assignee.trim()[0].toUpperCase() : '?'
+          const shortTask = arg.event.title.length > 18
+            ? arg.event.title.slice(0, 17) + '…'
+            : arg.event.title
+          return (
+            <div
+              title={`${teamName ? `[${teamName}] ` : ''}${task.task}${assignee ? ` · ${assignee}` : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '2px 5px',
+                borderRadius: '4px',
+                backgroundColor: isCompleted ? 'rgba(255,255,255,0.05)' : `${teamColor}22`,
+                borderLeft: `2px solid ${isCompleted ? 'rgba(255,255,255,0.2)' : teamColor}`,
+                width: '100%',
+                overflow: 'hidden',
+                cursor: 'pointer',
+                opacity: isCompleted ? 0.45 : 1,
+              }}
+            >
+              {/* Assignee avatar dot */}
+              <span style={{
+                flexShrink: 0,
+                width: '14px',
+                height: '14px',
+                borderRadius: '50%',
+                backgroundColor: isCompleted ? 'rgba(255,255,255,0.15)' : `${teamColor}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '8px',
+                fontWeight: 700,
+                color: '#000',
+                lineHeight: 1,
+              }}>{initial}</span>
+              {/* Task name */}
+              <span style={{
+                fontSize: '10px',
+                fontWeight: 500,
+                color: isCompleted ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.85)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                textDecoration: isCompleted ? 'line-through' : 'none',
+                letterSpacing: '0.01em',
+              }}>{shortTask}</span>
             </div>
           )
         }}
