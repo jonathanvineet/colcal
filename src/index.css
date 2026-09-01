@@ -47,6 +47,27 @@ body {
     var(--bg-900);
 }
 
+/* ─── Landing page textures ─────────────────────────────────── */
+
+/* Grain noise overlay */
+.landing-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.12;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  background-repeat: repeat;
+}
+
+/* Dot-grid pattern */
+.landing-dots {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.14) 1px, transparent 1px) !important;
+  background-size: 28px 28px !important;
+}
+
 a {
   font-weight: 600;
   color: var(--fg-100);
@@ -1073,6 +1094,61 @@ textarea:focus {
 
 .fc-day-note-count {
   font-size: 10px;
+}
+
+/* Calendar Day Task Indicator */
+.fc-day-task-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(226, 179, 64, 0.2);
+  border: 1px solid rgba(226, 179, 64, 0.45);
+  color: #fde047;
+  padding: 1px 5px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  margin-left: 2px;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.fc-day-task-badge:hover {
+  background: rgba(226, 179, 64, 0.35);
+  transform: scale(1.05);
+}
+
+.fc-day-task-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #eab308;
+  box-shadow: 0 0 6px #ca8a04;
+}
+
+.fc-day-task-count {
+  font-size: 10px;
+}
+
+/* Calendar Task Events */
+.fc-task-event {
+  font-size: 11px !important;
+  font-weight: 500;
+  border-radius: 4px !important;
+  padding: 1px 4px !important;
+  cursor: pointer;
+  transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.fc-task-event:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.fc-task-event.is-task-completed {
+  text-decoration: line-through;
+  opacity: 0.55;
 }
 
 /* Notes Card Header */

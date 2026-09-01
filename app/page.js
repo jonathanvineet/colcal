@@ -12,6 +12,7 @@ import imageCompression from 'browser-image-compression'
 import RichTextEditor from '@/components/RichTextEditor'
 import useSWR from 'swr'
 import Skeleton from '@/components/Skeleton'
+import LandingPage from '@/components/LandingPage'
 
 const fetchDashboardData = async () => {
   const [fetchedTeams, fetchedMembers, fetchedTasks, fetchedNotes] = await Promise.all([
@@ -562,6 +563,10 @@ export default function Home() {
   }
 
   // ── Loading / error states ────────────────────────────────────────────
+  if (isLoaded && !user) {
+    return <LandingPage />
+  }
+
   if (!isLoaded || dataLoading) {
     return (
       <div className="home-page">
@@ -704,47 +709,43 @@ export default function Home() {
                           fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
                         }}
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                        Details
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
                       </button>
                     </div>
                   ))
                 ) : (
-                  <p className="muted" style={{ fontSize: '12px', margin: 0 }}>No pending tasks assigned to you.</p>
+                  <p style={{ color: 'var(--fg-500)', textAlign: 'center', margin: '20px 0' }}>No tasks assigned</p>
                 )}
               </div>
             </div>
           </aside>
 
-          <section className="center-calendar-zone">
-            <div className="card calendar-feature-card">
-              <div className="calendar-feature-head">
-                <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Team Calendar
-                </h3>
-              </div>
-              <Calendar
-                userId={user?.id}
-                selectedDate={selectedDate}
-                onDateChange={setSelectedDate}
-                notesByDate={notesByDate}
-              />
-            </div>
+          <section className="center-rail">
+            <Calendar
+              userId={user?.id}
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+              notesByDate={notesByDate}
+              workByDate={workByDate}
+              teams={teams}
+              onOpenTaskDetails={handleOpenDetails}
+            />
           </section>
 
           <aside className="right-rail">
-            <div className="card">
-              <div className="notes-card-head" style={{ marginBottom: '16px', flexWrap: 'wrap' }}>
-                <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  {currentMonth} {toOrdinal(currentDay)}'s Work
-                </h3>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <Link href="/tasks" className="notes-explorer-link">Tasks</Link>
-                  <Link href="/reports/member" className="notes-explorer-link" style={{ background: 'var(--brand)' }}>Reports</Link>
+            {isAdmin && (
+              <div className="card">
+                <div className="notes-card-head" style={{ marginBottom: '16px', flexWrap: 'wrap' }}>
+                  <h3 style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {currentMonth} {toOrdinal(currentDay)}'s Work
+                  </h3>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <Link href="/tasks" className="notes-explorer-link">Tasks</Link>
+                    <Link href="/reports/member" className="notes-explorer-link" style={{ background: 'var(--brand)' }}>Reports</Link>
+                  </div>
                 </div>
-              </div>
-              {isAdmin && (
-                <form onSubmit={handleAddTask} className="task-add-form" style={{ marginBottom: 16 }}>
+
+                <form onSubmit={handleAddTask} className="task-add-form">
                   {(activeTeam || selectedAssignees.size > 0) && (
                     <div style={{
                       gridArea: 'info',
@@ -803,75 +804,8 @@ export default function Home() {
                   />
                   <button type="submit" className="task-add-submit">Add Task</button>
                 </form>
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {visibleDateWork.length > 0 ? (
-                  visibleDateWork.map((item) => (
-                    <div key={item.id || item.task} style={{
-                      borderLeft: '2px solid var(--line-600)',
-                      paddingLeft: 12,
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 12,
-                      opacity: item.completed ? 0.6 : 1,
-                      transition: 'opacity 0.2s'
-                    }}>
-                      <div style={{ marginTop: 2 }}>
-                        <input
-                          type="checkbox"
-                          checked={item.completed || false}
-                          onChange={() => handleToggleTask(item)}
-                          style={{ cursor: 'pointer' }}
-                        />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, color: 'var(--fg-500)', display: 'flex', gap: 8 }}>
-                          <span>{item.team || 'Unassigned'}</span>
-                          {item.assignee && (
-                            <>
-                              <span>•</span>
-                              <span>{item.assignee}</span>
-                            </>
-                          )}
-                        </div>
-                        <div style={{
-                          marginTop: 4,
-                          textDecoration: item.completed ? 'line-through' : 'none'
-                        }}>
-                          {item.task}
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '8px', alignSelf: 'center', marginLeft: 'auto', flexShrink: 0 }}>
-                        <button
-                          onClick={() => handleOpenDetails(item)}
-                          title="Proof & Details"
-                          style={{
-                            background: 'transparent', border: '1px solid var(--line-600)',
-                            color: 'var(--fg-300)', padding: '2px 6px', borderRadius: '4px',
-                            fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
-                          }}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                          Details
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTask(item)}
-                          className="member-remove-btn"
-                          title="Delete Task"
-                          style={{ padding: '2px 6px' }}
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <p className="muted" style={{ margin: 0 }}>
-                    No tasks yet for {currentMonth} {toOrdinal(currentDay)}{activeTeam ? ` in ${activeTeam}` : ''}.
-                  </p>
-                )}
               </div>
-            </div>
+            )}
 
             <div className="card">
               <div className="notes-card-head" style={{ marginBottom: '8px' }}>

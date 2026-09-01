@@ -34,7 +34,15 @@ function getDateKey(date) {
   ].join('-')
 }
 
-export default function Calendar({ userId, selectedDate, onDateChange, notesByDate = {} }) {
+export default function Calendar({
+  userId,
+  selectedDate,
+  onDateChange,
+  notesByDate = {},
+  workByDate = {},
+  teams = [],
+  onOpenTaskDetails
+}) {
   const calendarRef = useRef(null)
   const [events, setEvents] = useState([])
   const [eventsLoaded, setEventsLoaded] = useState(false)
@@ -75,6 +83,35 @@ export default function Calendar({ userId, selectedDate, onDateChange, notesByDa
     }
   }, [selectedDate])
 
+  // Merge regular calendar events with scheduled tasks from workByDate
+  const allCalendarEvents = useMemo(() => {
+    const taskEvents = Object.entries(workByDate).flatMap(([dateKey, dailyTasks]) => {
+      if (!Array.isArray(dailyTasks)) return []
+      return dailyTasks.map((task) => {
+        const teamObj = teams.find((t) => t.name === task.team)
+        const teamColor = teamObj?.color || '#3b82f6'
+        const isCompleted = !!task.completed
+
+        return {
+          id: `task-${task.id}`,
+          title: `${task.team ? `[${task.team}] ` : ''}${task.task}${task.assignee ? ` • ${task.assignee}` : ''}`,
+          start: dateKey,
+          allDay: true,
+          backgroundColor: isCompleted ? 'rgba(255, 255, 255, 0.08)' : `${teamColor}33`,
+          borderColor: isCompleted ? 'rgba(255, 255, 255, 0.2)' : teamColor,
+          textColor: isCompleted ? 'rgba(255, 255, 255, 0.45)' : '#ffffff',
+          classNames: ['fc-task-event', isCompleted ? 'is-task-completed' : ''],
+          extendedProps: {
+            isTask: true,
+            task,
+          },
+        }
+      })
+    })
+
+    return [...events, ...taskEvents]
+  }, [events, workByDate, teams])
+
   const handleDateSelect = (info) => {
     onDateChange?.(info.start)
 
@@ -109,6 +146,8 @@ export default function Calendar({ userId, selectedDate, onDateChange, notesByDa
 
   const handleEventChange = (changeInfo) => {
     const { event } = changeInfo
+    if (event.extendedProps?.isTask) return // Task scheduling is managed via task system
+
     const updated = {
       id: event.id,
       start: event.start?.toISOString?.() || event.startStr,
@@ -125,6 +164,7 @@ export default function Calendar({ userId, selectedDate, onDateChange, notesByDa
 
   const handleEventAdd = (addInfo) => {
     const { event } = addInfo
+    if (event.extendedProps?.isTask) return
     // FullCalendar may fire eventAdd for events already in state — only persist if new
     if (!events.find((e) => e.id === event.id)) {
       const newEvent = {
@@ -142,6 +182,12 @@ export default function Calendar({ userId, selectedDate, onDateChange, notesByDa
   }
 
   const handleEventClick = (clickInfo) => {
+    if (clickInfo.event.extendedProps?.isTask) {
+      const task = clickInfo.event.extendedProps.task
+      onOpenTaskDetails?.(task)
+      return
+    }
+
     if (confirm(`Delete event '${clickInfo.event.title}'?`)) {
       const id = clickInfo.event.id
       setEvents((prev) => prev.filter((e) => e.id !== id))
@@ -176,7 +222,7 @@ export default function Calendar({ userId, selectedDate, onDateChange, notesByDa
         dayMaxEvents
         editable
         droppable
-        events={events}
+        events={allCalendarEvents}
         select={handleDateSelect}
         dateClick={handleDateClick}
         eventAdd={handleEventAdd}
@@ -190,9 +236,22 @@ export default function Calendar({ userId, selectedDate, onDateChange, notesByDa
           const dayNotes = notesByDate[dateKey]
           const noteCount = Array.isArray(dayNotes) ? dayNotes.length : 0
 
+          const dayTasks = workByDate[dateKey]
+          const taskCount = Array.isArray(dayTasks) ? dayTasks.length : 0
+          const pendingCount = Array.isArray(dayTasks) ? dayTasks.filter((t) => !t.completed).length : 0
+
           return (
             <div className="fc-daygrid-day-number-wrapper">
               <span className="fc-daygrid-day-number-text">{arg.dayNumberText}</span>
+              {taskCount > 0 && (
+                <span
+                  className="fc-day-task-badge"
+                  title={`${taskCount} task${taskCount > 1 ? 's' : ''} (${pendingCount} pending)`}
+                >
+                  <span className="fc-day-task-dot" />
+                  {taskCount > 1 && <span className="fc-day-task-count">{taskCount}</span>}
+                </span>
+              )}
               {noteCount > 0 && (
                 <span
                   className="fc-day-note-badge"
