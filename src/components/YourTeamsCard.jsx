@@ -69,83 +69,109 @@ export default function YourTeamsCard({
         </form>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        {teams.map((team, idx) => (
-          <div key={idx} style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '14px',
-            padding: '14px',
-            background: 'rgba(255, 255, 255, 0.03)',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            transition: 'all 0.3s',
-            border: activeTeam === team.name
-              ? `1px solid ${team.color}`
-              : '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: activeTeam === team.name ? `0 0 0 1px ${team.color}40` : 'none'
-          }}
-          onClick={() => setActiveTeam(activeTeam === team.name ? null : team.name)}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.borderColor = team.color
-            e.currentTarget.style.boxShadow = `0 0 20px ${team.color}40`
-            e.currentTarget.style.transform = 'translateX(5px)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
-            e.currentTarget.style.boxShadow = 'none'
-            e.currentTarget.style.transform = 'translateX(0)'
-          }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                backgroundColor: team.color,
-                boxShadow: `0 0 12px ${team.color}`,
-                flexShrink: 0
-              }} />
-              <span style={{ color: 'white', fontSize: '13px', fontWeight: '500' }}>
-                {team.name}
-              </span>
-              {activeTeam === team.name && (
-                <span style={{ fontSize: 11, color: 'var(--fg-500)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                  Active
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        maxHeight: '215px',
+        overflowY: 'auto',
+        paddingRight: teams.length > 3 ? '6px' : '0',
+      }}>
+        {teams.length === 0 ? (
+          <p className="muted" style={{ fontSize: 13, margin: '8px 0' }}>
+            No teams created yet.
+          </p>
+        ) : (
+          teams.map((team, idx) => (
+            <div key={idx} style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              padding: '12px 14px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              flexShrink: 0,
+              border: activeTeam === team.name
+                ? `1px solid ${team.color}`
+                : '1px solid rgba(255, 255, 255, 0.1)',
+              boxShadow: activeTeam === team.name ? `0 0 12px ${team.color}35` : 'none'
+            }}
+            onClick={() => setActiveTeam(activeTeam === team.name ? null : team.name)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = team.color
+              e.currentTarget.style.boxShadow = `0 0 16px ${team.color}30`
+              e.currentTarget.style.transform = 'translateX(3px)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = activeTeam === team.name ? team.color : 'rgba(255, 255, 255, 0.1)'
+              e.currentTarget.style.boxShadow = activeTeam === team.name ? `0 0 12px ${team.color}35` : 'none'
+              e.currentTarget.style.transform = 'translateX(0)'
+            }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                <div style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  backgroundColor: team.color,
+                  boxShadow: `0 0 10px ${team.color}`,
+                  flexShrink: 0
+                }} />
+                <span style={{ color: 'white', fontSize: '13px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {team.name}
                 </span>
+                {activeTeam === team.name && (
+                  <span style={{ fontSize: 10, color: 'var(--fg-500)', letterSpacing: '0.05em', textTransform: 'uppercase', flexShrink: 0 }}>
+                    Active
+                  </span>
+                )}
+              </div>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    handleRemoveTeam(team.name)
+                  }}
+                  aria-label={`Remove ${team.name}`}
+                  style={{
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    color: 'var(--fg-300)',
+                    width: 24,
+                    height: 24,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    padding: 0,
+                    lineHeight: 1,
+                    fontSize: 14,
+                    flexShrink: 0,
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'
+                    e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)'
+                    e.currentTarget.style.color = '#ef4444'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'
+                    e.currentTarget.style.color = 'var(--fg-300)'
+                  }}
+                  title="Remove team"
+                >
+                  ×
+                </button>
               )}
             </div>
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  handleRemoveTeam(team.name)
-                }}
-                aria-label={`Remove ${team.name}`}
-                style={{
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  color: 'var(--fg-100)',
-                  width: 28,
-                  height: 28,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  padding: 0,
-                  lineHeight: 1,
-                  fontSize: 16
-                }}
-                title="Remove team"
-              >
-                x
-              </button>
-            )}
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   )

@@ -74,6 +74,23 @@ export default function NotesExplorerPage() {
     }
   }, [dbData])
 
+  // Read URL query parameters to pre-fill date filters
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const dateParam = params.get('date')
+    const dateFromParam = params.get('dateFrom')
+    const dateToParam = params.get('dateTo')
+
+    if (dateParam) {
+      setNotesDateFrom(dateParam)
+      setNotesDateTo(dateParam)
+    } else {
+      if (dateFromParam) setNotesDateFrom(dateFromParam)
+      if (dateToParam) setNotesDateTo(dateToParam)
+    }
+  }, [])
+
   const allNotes = useMemo(() => (
     Object.entries(notesByDate)
       .flatMap(([dateKey, entries]) => (

@@ -6,7 +6,12 @@ export async function GET(request) {
   const authData = await getEffectiveAuth(request.url)
   if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   let query = supabase
     .from('teams')
     .select('name, color, position')
@@ -27,7 +32,12 @@ export async function POST(request) {
     return NextResponse.json({ error: 'name and color are required' }, { status: 400 })
   }
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   
   const effectiveOrgId = authData.orgId === 'personal' ? null : authData.orgId
 
@@ -81,7 +91,12 @@ export async function DELETE(request) {
   const name = searchParams.get('name')
   if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 })
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   let query = supabase
     .from('teams')
     .delete()

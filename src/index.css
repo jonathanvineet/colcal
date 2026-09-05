@@ -36,6 +36,23 @@ body {
   width: 100%;
 }
 
+/* Global sleek dark scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 body {
   min-height: 100vh;
   background:
@@ -45,6 +62,27 @@ body {
     repeating-linear-gradient(90deg, transparent 0 23px, var(--line-600) 23px 24px),
     repeating-linear-gradient(0deg, transparent 0 23px, var(--line-600) 23px 24px),
     var(--bg-900);
+}
+
+/* ─── Landing page textures ─────────────────────────────────── */
+
+/* Grain noise overlay */
+.landing-grain::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.12;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  background-repeat: repeat;
+}
+
+/* Dot-grid pattern */
+.landing-dots {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.14) 1px, transparent 1px) !important;
+  background-size: 28px 28px !important;
 }
 
 a {
@@ -1028,4 +1066,329 @@ textarea:focus {
 @keyframes skeletonPulse {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
+}
+
+/* ============================================================
+   Notes Overhaul & Calendar Indicators
+   ============================================================ */
+
+/* Calendar Day Number & Note Indicator */
+.fc-daygrid-day-number-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fc-day-note-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid rgba(99, 102, 241, 0.45);
+  color: #c7d2fe;
+  padding: 1px 5px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  margin-left: 2px;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.fc-day-note-badge:hover {
+  background: rgba(99, 102, 241, 0.35);
+  transform: scale(1.05);
+}
+
+.fc-day-note-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #818cf8;
+  box-shadow: 0 0 6px #6366f1;
+}
+
+.fc-day-note-count {
+  font-size: 10px;
+}
+
+/* Calendar Day Task Indicator */
+.fc-day-task-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(226, 179, 64, 0.2);
+  border: 1px solid rgba(226, 179, 64, 0.45);
+  color: #fde047;
+  padding: 1px 5px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  margin-left: 2px;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.fc-day-task-badge:hover {
+  background: rgba(226, 179, 64, 0.35);
+  transform: scale(1.05);
+}
+
+.fc-day-task-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #eab308;
+  box-shadow: 0 0 6px #ca8a04;
+}
+
+.fc-day-task-count {
+  font-size: 10px;
+}
+
+/* Calendar Task Events — compact left-border pill */
+.fc-task-event .fc-event-main {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+/* Strip FullCalendar's default event chrome entirely for task pills */
+.fc-task-event {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 1px 1px !important;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.fc-task-event:hover {
+  opacity: 0.85;
+}
+
+.fc-task-event.is-task-completed {
+  opacity: 0.45;
+}
+
+/* Notes Card Header */
+.notes-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notes-count-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fg-300);
+  border: 1px solid var(--line-600);
+}
+
+.notes-new-btn {
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.notes-new-btn:hover {
+  opacity: 0.9;
+}
+
+/* Notes Composer */
+.notes-composer {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-600);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notes-composer-textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--line-600);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--fg-100);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.notes-composer-textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+}
+
+.notes-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notes-team-select {
+  background: var(--bg-800);
+  border: 1px solid var(--line-600);
+  border-radius: 6px;
+  color: var(--fg-200);
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.notes-composer-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Notes Feed List */
+.notes-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.note-feed-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line-600);
+  border-radius: 8px;
+  padding: 12px;
+  transition: border-color 0.2s, background-color 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+.note-feed-card:hover {
+  background: rgba(255, 255, 255, 0.045);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.note-feed-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.note-feed-author-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.note-author-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.note-author-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-100);
+}
+
+.note-feed-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  border: 1px solid currentColor;
+}
+
+.note-feed-time {
+  font-size: 11px;
+  color: var(--fg-500);
+  font-family: var(--font-mono);
+}
+
+.note-feed-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.note-action-btn {
+  background: transparent;
+  border: 1px solid var(--line-600);
+  color: var(--fg-400);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.15s ease;
+}
+
+.note-action-btn:hover {
+  color: var(--fg-100);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.note-action-btn.delete:hover {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.note-feed-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg-200);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.note-feed-empty {
+  text-align: center;
+  padding: 20px 16px;
+  border: 1px dashed var(--line-600);
+  border-radius: 8px;
+  color: var(--fg-400);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }

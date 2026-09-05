@@ -6,7 +6,12 @@ export async function GET(request) {
   const authData = await getEffectiveAuth(request.url)
   if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   let query = supabase
     .from('tasks')
     .select('id, date_key, time, task, team, completed, assignee, details, attachments')
@@ -27,7 +32,12 @@ export async function POST(request) {
     return NextResponse.json({ error: 'dateKey and task are required' }, { status: 400 })
   }
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   const { data, error } = await supabase
     .from('tasks')
     .insert({
@@ -67,7 +77,12 @@ export async function PUT(request) {
   if (details !== undefined) updates.details = details
   if (attachments !== undefined) updates.attachments = attachments
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   let query = supabase
     .from('tasks')
     .update(updates)
@@ -88,7 +103,12 @@ export async function DELETE(request) {
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   let query = supabase
     .from('tasks')
     .delete()

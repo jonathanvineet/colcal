@@ -6,11 +6,16 @@ export async function GET(request) {
   const authData = await getEffectiveAuth(request.url)
   if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   let query = supabase
     .from('team_members')
     .select('team_name, member_id')
-  
+
   if (authData.orgId === 'personal') {
     query = query.is('org_id', null)
   } else {
@@ -56,10 +61,10 @@ export async function POST(request) {
     const { error } = await supabase
       .from('team_members')
       .upsert(
-        { 
+        {
           org_id: effectiveOrgId,
-          team_name: teamName, 
-          member_id: memberId 
+          team_name: teamName,
+          member_id: memberId
         },
         { onConflict: 'org_id,team_name,member_id' }
       )
@@ -81,13 +86,18 @@ export async function DELETE(request) {
     return NextResponse.json({ error: 'teamName and memberId are required' }, { status: 400 })
   }
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   let query = supabase
     .from('team_members')
     .delete()
     .eq('team_name', teamName)
     .eq('member_id', memberId)
-  
+
   if (authData.orgId === 'personal') {
     query = query.is('org_id', null)
   } else {

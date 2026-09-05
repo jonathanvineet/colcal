@@ -6,7 +6,12 @@ export async function GET(request) {
   const authData = await getEffectiveAuth(request.url)
   if (!authData.userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   let query = supabase
     .from('notes')
     .select('id, date_key, text, author_name, team, saved_at')
@@ -27,7 +32,12 @@ export async function POST(request) {
     return NextResponse.json({ error: 'id, dateKey, and text are required' }, { status: 400 })
   }
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   const notePayload = {
     user_id: authData.userId,
     org_id: authData.orgId === 'personal' ? null : authData.orgId,
@@ -64,7 +74,12 @@ export async function DELETE(request) {
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
-  const supabase = createServerSupabaseClient()
+  let supabase
+  try {
+    supabase = createServerSupabaseClient()
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 })
+  }
   let query = supabase.from('notes').delete().eq('id', id)
   query = applyAuthFilter(query, authData)
   
