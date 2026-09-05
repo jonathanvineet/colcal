@@ -22,13 +22,15 @@ function formatDateKey(dateKey) {
 
 export default function MemberReportPage() {
   const { user, isLoaded: userLoaded } = useUser()
-  const { membership, isLoaded: orgLoaded } = useOrganization()
+  const { membership, organization, isLoaded: orgLoaded } = useOrganization()
 
   const isSuperuser = user?.publicMetadata?.isSuperuser === true
   const isAdmin = isSuperuser || membership?.role === 'org:admin'
   const userDisplayName = user?.fullName || user?.firstName || user?.username || 'Unknown User'
 
-  const { data: dbData, isLoading: swrLoading, error: swrError } = useSWR(user?.id ? 'member-report' : null, fetchReportData, {
+  const activeOrgId = organization?.id || 'personal'
+
+  const { data: dbData, isLoading: swrLoading, error: swrError } = useSWR(user?.id ? `member-report-${activeOrgId}` : null, fetchReportData, {
     revalidateOnFocus: false,
   })
 

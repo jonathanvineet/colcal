@@ -110,17 +110,19 @@ function isAssigneeMatch(assigneeStr, targetName) {
 
 export default function Home() {
   const { user, isLoaded } = useUser()
-  const { memberships, membership } = useOrganization({
+  const { memberships, membership, organization } = useOrganization({
     memberships: {
       keepPreviousData: true,
     },
   })
 
+  const activeOrgId = organization?.id || 'personal'
+
   const isSuperuser = user?.publicMetadata?.isSuperuser === true
   const isAdmin = isSuperuser || membership?.role === 'org:admin'
   const userDisplayName = user?.fullName || user?.firstName || user?.username || 'Unknown User'
 
-  const { data: dbData, isLoading: swrLoading, error: swrError } = useSWR(user?.id ? 'dashboard' : null, fetchDashboardData, {
+  const { data: dbData, isLoading: swrLoading, error: swrError } = useSWR(user?.id ? `dashboard-${activeOrgId}` : null, fetchDashboardData, {
     revalidateOnFocus: false,
   })
 
@@ -642,6 +644,7 @@ export default function Home() {
               </div>
               <Calendar
                 userId={user?.id}
+                orgId={activeOrgId}
                 selectedDate={selectedDate}
                 onDateChange={setSelectedDate}
               />

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useUser, UserButton } from '@clerk/nextjs'
+import { useUser, UserButton, useOrganization } from '@clerk/nextjs'
 import NotesExplorerCard from '@/components/NotesExplorerCard'
 import { fetchNotes } from '@/lib/db'
 import useSWR from 'swr'
@@ -46,7 +46,10 @@ function formatTimestamp(isoString) {
 
 export default function NotesExplorerPage() {
   const { user, isLoaded } = useUser()
-  const { data: dbData, isLoading: swrLoading, error: swrError } = useSWR(user?.id ? 'notes' : null, fetchNotes, {
+  const { organization } = useOrganization()
+  const activeOrgId = organization?.id || 'personal'
+
+  const { data: dbData, isLoading: swrLoading, error: swrError } = useSWR(user?.id ? `notes-${activeOrgId}` : null, fetchNotes, {
     revalidateOnFocus: false,
   })
 

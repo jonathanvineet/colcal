@@ -26,13 +26,15 @@ function formatTimestamp(dateKey, time) {
 
 export default function TasksExplorerPage() {
   const { user, isLoaded: userLoaded } = useUser()
-  const { membership, isLoaded: orgLoaded } = useOrganization()
+  const { membership, organization, isLoaded: orgLoaded } = useOrganization()
 
   const isSuperuser = user?.publicMetadata?.isSuperuser === true
   const isAdmin = isSuperuser || membership?.role === 'org:admin'
   const userDisplayName = user?.fullName || user?.firstName || user?.username || 'Unknown User'
 
-  const { data: dbData, isLoading: swrLoading, error: swrError } = useSWR(user?.id ? 'tasks' : null, fetchTasksData, {
+  const activeOrgId = organization?.id || 'personal'
+
+  const { data: dbData, isLoading: swrLoading, error: swrError } = useSWR(user?.id ? `tasks-${activeOrgId}` : null, fetchTasksData, {
     revalidateOnFocus: false,
   })
 

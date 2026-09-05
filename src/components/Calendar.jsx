@@ -26,15 +26,18 @@ function isSameDay(a, b) {
   )
 }
 
-export default function Calendar({ userId, selectedDate, onDateChange }) {
+export default function Calendar({ userId, orgId, selectedDate, onDateChange }) {
   const calendarRef = useRef(null)
   const [events, setEvents] = useState([])
   const [eventsLoaded, setEventsLoaded] = useState(false)
 
-  // Load events from DB once userId is available
+  // Load events from DB when userId or orgId changes
   useEffect(() => {
     if (!userId) return
     let cancelled = false
+
+    setEventsLoaded(false)
+    setEvents([])
 
     fetchCalendarEvents()
       .then((data) => {
@@ -49,7 +52,7 @@ export default function Calendar({ userId, selectedDate, onDateChange }) {
       })
 
     return () => { cancelled = true }
-  }, [userId])
+  }, [userId, orgId])
 
   // Sync calendar view when selectedDate changes externally
   useEffect(() => {

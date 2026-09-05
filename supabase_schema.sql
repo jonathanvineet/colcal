@@ -80,3 +80,15 @@ create table if not exists calendar_events (
   created_at timestamptz not null default now()
 );
 alter table calendar_events enable row level security;
+
+-- ============================================================
+-- Unique indexes using COALESCE for NULL org_id handling.
+-- PostgreSQL treats NULL != NULL in unique constraints, so
+-- standard unique(org_id, name) doesn't prevent duplicates
+-- when org_id is NULL (personal workspace). These indexes fix that.
+-- ============================================================
+CREATE UNIQUE INDEX IF NOT EXISTS teams_org_name_unique
+ON teams (COALESCE(org_id, '__personal__'), name);
+
+CREATE UNIQUE INDEX IF NOT EXISTS team_members_org_team_member_unique
+ON team_members (COALESCE(org_id, '__personal__'), team_name, member_id);

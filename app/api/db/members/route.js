@@ -33,18 +33,39 @@ export async function POST(request) {
   }
 
   const supabase = createServerSupabaseClient()
-  const { error } = await supabase
-    .from('team_members')
-    .upsert(
-      { 
-        org_id: authData.orgId === 'personal' ? null : authData.orgId,
-        team_name: teamName, 
-        member_id: memberId 
-      },
-      { onConflict: 'org_id,team_name,member_id' }
-    )
+  const effectiveOrgId = authData.orgId === 'personal' ? null : authData.orgId
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (effectiveOrgId === null) {
+    // NULL org_id: PostgreSQL unique constraint doesn't match NULL = NULL,
+    // so we manually check for existence before inserting.
+    const { data: existing } = await supabase
+      .from('team_members')
+      .select('id')
+      .is('org_id', null)
+      .eq('team_name', teamName)
+      .eq('member_id', memberId)
+      .maybeSingle()
+
+    if (!existing) {
+      const { error } = await supabase
+        .from('team_members')
+        .insert({ org_id: null, team_name: teamName, member_id: memberId })
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+  } else {
+    const { error } = await supabase
+      .from('team_members')
+      .upsert(
+        { 
+          org_id: effectiveOrgId,
+          team_name: teamName, 
+          member_id: memberId 
+        },
+        { onConflict: 'org_id,team_name,member_id' }
+      )
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
   return NextResponse.json({ success: true })
 }
 
